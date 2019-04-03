@@ -3,12 +3,15 @@
 // ================================= CONFIG ===================================
 
 /* Window resolution */
-const float      WIN_WIDTH                 = 1024.0f;
-const float      WIN_HEIGHT                = 768.0f;
+const float      WIN_WIDTH                 = 800.0f;
+const float      WIN_HEIGHT                = 600.0f;
+
+//const float      WIN_WIDTH                 = 1920.0f;
+//const float      WIN_HEIGHT                = 1080.0f;
 const bool       WIN_FULLSCREEN            = false;
 
 /* Framerate target */
-const float      FRAMERATE_TARGET          = 30.0f;
+const float      FRAMERATE_TARGET          = 60.0f;
 
 /* Sponza flag mesh */
 const bool       SHOW_SPONZA_FLAG_MESH     = false;
@@ -49,7 +52,7 @@ const float      SSAO_BIAS                 = 0.05f;
 const float      SSAO_INTENSITY            = 3.0f;
 const uint32_t   SSAO_BLUR_SIZE            = 2;     // Min=0 (no blur)
 const float      SSAO_BLUR_THRESHOLD       = 0.05f; // Min > 0.0
-const float      SSAO_DOWNSAMPLING         = 1.0f;  // Min=1.0 (no downsampling)
+const float      SSAO_DOWNSAMPLING         = 2.0f;  // Min=1.0 (no downsampling)
 const VkFilter   SSAO_FILTER               = VK_FILTER_NEAREST;
 
 /* High Dynamic Range (HDR) and Tone Mapping */
