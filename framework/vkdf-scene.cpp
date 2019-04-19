@@ -3642,7 +3642,7 @@ record_dynamic_shadow_map_resource_updates(VkdfScene *s,
                                            const std::vector<struct LightThreadData>& data)
 {
    VkDeviceSize offset = 0;
-   for (int i = 0; i < data.size(); i++) {
+   for (size_t i = 0; i < data.size(); i++) {
       if (!data[i].has_dirty_shadow_map)
          continue;
       const struct _DirtyShadowMapInfo *ds = &data[i].shadow_map_info;
@@ -3877,7 +3877,7 @@ update_dirty_lights(VkdfScene *s)
 
       /* Record shadow map commands */
       start_recording_shadow_map_commands(s);
-      for (int i = first_dirty_shadow_map; i < data_count; i++) {
+      for (size_t i = first_dirty_shadow_map; i < data_count; i++) {
          if (!data[i].has_dirty_shadow_map)
             continue;
          struct _DirtyShadowMapInfo *ds = &data[i].shadow_map_info;
