@@ -1,0 +1,59 @@
+src = $(filter-out %-sdl.cpp %-glfw.cpp, $(wildcard framework/*.cpp))
+obj = $(src:.cpp=.o)
+dep = $(obj:.o=.d)
+lib_so = libvkdf.so
+
+spv = $(patsubst %.input,%.spv,$(wildcard data/spirv/*.input)) \
+	$(patsubst %.frag,%.frag.spv,$(wildcard data/spirv/*.frag)) \
+	$(patsubst %.vert,%.vert.spv,$(wildcard data/spirv/*.vert))
+
+dbg = -g
+opt = -O0
+inc = -Iframework
+def = -DVKDF_PLATFORM_SDL -DVKDF_DATA_DIR=\"$(shell pwd)/data/\"
+
+config = framework/config.h
+ifeq ($(wildcard $(config)),)
+$(file >$(config),$^)
+endif
+
+unused = -Wno-unused-function -Wno-unused-parameter -Wno-unused-variable
+
+CXX = g++
+CXXFLAGS = -Wall $(unused) $(dbg) $(opt) $(inc) $(def) \
+	-Wextra `pkg-config --cflags glm glib-2.0 sdl2` -fPIC
+LDFLAGS = -lvulkan -lassimp -lSDL2_image \
+		`pkg-config --libs glm glib-2.0 sdl2`
+
+GLSLANG = glslangValidator
+FIXUP_GLSL := python $(shell pwd)/scripts/fixup-glsl.py
+
+$(lib_so): $(obj) $(spv)
+	$(CXX) -o $@ -shared $(obj) $(LDFLAGS)
+
+%.frag: %.frag.input
+	cd $(dir $<) && $(FIXUP_GLSL) $(notdir $<) $(notdir $@)
+
+%.vert: %.vert.input
+	cd $(dir $<) && $(FIXUP_GLSL) $(notdir $<) $(notdir $@)
+
+%.vert.spv: %.vert
+	$(GLSLANG) -V $< -o $@
+
+%.frag.spv: %.frag
+	$(GLSLANG) -V $< -o $@
+
+-include $(dep)
+
+# to create dependency files to rebuild when the included .h are modified
+%.d: %.cpp
+	@echo "Generating depfile: $@"
+	@$(CPP) $(CXXFLAGS) $< -MM -MT $(@:.d=.o) >$@
+
+.PHONY: clean
+clean:
+	rm -f $(obj) $(lib_so) $(dep) $(spv) $(config)
+
+.PHONY: sponza
+sponza:
+	$(MAKE) -f MakefileSimple -C demos/sponza
