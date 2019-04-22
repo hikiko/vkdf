@@ -1,0 +1,48 @@
+src = $(wildcard *.cpp)
+obj = $(src:.cpp=.o)
+dep = $(obj.o=.d)
+bin = sponza
+
+vkdf_root = ../..
+
+spv = $(patsubst %.input,%.spv,$(wildcard *.input)) \
+	$(patsubst %.frag,%.frag.spv,$(wildcard *.frag)) \
+	$(patsubst %.vert,%.vert.spv,$(wildcard *.vert))
+
+dbg = -g
+opt = -O0
+inc = -I$(vkdf_root)/framework
+def = -DVKDF_PLATFORM_SDL
+
+CXX = g++
+CXXFLAGS = -Wall $(dbg) $(opt) $(inc) $(def) `pkg-config --cflags glm glib-2.0 sdl2`
+LDFLAGS = -L$(vkdf_root) -lvkdf -lvulkan -lassimp -lSDL2_image \
+		  `pkg-config --libs glm glib-2.0 sdl2`
+
+GLSLANG = glslangValidator
+FIXUP_GLSL := python $(vkdf_root)/scripts/fixup-glsl.py
+
+$(bin): $(obj) $(vkdf_root)/libvkdf.so $(spv)
+	$(CXX) -o $@ $(obj) -Wl,-rpath=$(vkdf_root) $(LDFLAGS)
+
+%.frag: %.frag.input
+	$(FIXUP_GLSL) $< $@
+
+%.vert: %.vert.input
+	$(FIXUP_GLSL) $< $@
+
+%.vert.spv: %.vert
+	$(GLSLANG) -V $< -o $@
+
+%.frag.spv: %.frag
+	$(GLSLANG) -V $< -o $@
+
+-include $(dep)
+
+%.d: %.cpp
+	@echo "Generating depfile: $@"
+	@$(CPP) $(CXXFLAGS) $< -MM -MT $(@:.d=.o) >$@
+
+.PHONY: clean
+clean:
+	rm -f $(obj) $(bin) $(dep) $(spv)
