@@ -91,4 +91,37 @@ vkdf_vertex_attrib_set(VkVertexInputAttributeDescription *desc,
    desc->offset = offset;
 }
 
+VkPipeline
+vkdf_create_depth_pipeline(VkdfContext *ctx,
+                           VkPipelineCache *cache,
+                           uint32_t num_vi_bindings,
+                           VkVertexInputBindingDescription *vi_bindings,
+                           uint32_t num_vi_attribs,
+                           VkVertexInputAttributeDescription *vi_attribs,
+                           bool enable_depth_test,
+                           VkCompareOp depth_compare_op,
+                           VkRenderPass render_pass,
+                           VkPipelineLayout pipeline_layout,
+                           VkPrimitiveTopology primitive,
+                           VkCullModeFlagBits cull_mode,
+                           uint32_t num_color_attachments,
+                           VkShaderModule vs_module,
+                           VkShaderModule fs_module);
+
+VkPipeline
+vkdf_create_depth_pipeline(VkdfContext *ctx,
+                           VkPipelineCache *cache,
+                           uint32_t num_vi_bindings,
+                           VkVertexInputBindingDescription *vi_bindings,
+                           uint32_t num_vi_attribs,
+                           VkVertexInputAttributeDescription *vi_attribs,
+                           bool enable_depth_test,
+                           VkCompareOp depth_compare_op,
+                           VkRenderPass render_pass,
+                           VkPipelineLayout pipeline_layout,
+                           VkPrimitiveTopology primitive,
+                           VkCullModeFlagBits cull_mode,
+                           uint32_t num_color_attachments,
+                           const VkPipelineShaderStageCreateInfo *vs_info,
+                           const VkPipelineShaderStageCreateInfo *fs_info);
 #endif

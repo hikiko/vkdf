@@ -17,6 +17,13 @@ vkdf_renderpass_simple_new(VkdfContext *ctx,
                            VkImageLayout depth_initial_layout,
                            VkImageLayout depth_final_layout);
 
+VkRenderPass
+vkdf_create_depth_renderpass(VkdfContext *ctx,
+                             VkAttachmentLoadOp load_op,
+                             VkAttachmentStoreOp store_op,
+                             VkImageLayout depth_initial_layout,
+                             VkImageLayout depth_final_layout);
+
 inline VkRenderPassBeginInfo
 vkdf_renderpass_begin_new(VkRenderPass renderpass,
                           VkFramebuffer framebuffer,

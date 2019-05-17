@@ -23,7 +23,7 @@ const uint32_t   SPONZA_FLAG_MESH_IDX      = 4;
  * post-processing callback for this, which means that our debug tile
  * will be post-processed (i.e. affect SSR, etc)
  */
-const bool       SHOW_DEBUG_TILE           = false;
+const bool       SHOW_DEBUG_TILE           = true;
 
 /* Pipeline options */
 const bool       ENABLE_CLIPPING           = true;
@@ -66,7 +66,7 @@ const glm::vec4  SUN_SPECULAR              = glm::vec4(3.0f, 3.0f, 3.0f, 1.0f);
 const glm::vec4  SUN_AMBIENT               = glm::vec4(0.1f, 0.1f, 0.1f, 1.0f);
 
 /* Screen Space Reflections (SSR) */
-const bool       ENABLE_SSR                = true;
+const bool       ENABLE_SSR                = false;
 const float      SSR_REFLECTION_STRENGTH   = 0.1f;  // Min > 0.0, Max=1.0
 const int        SSR_REFLECTION_ROUGHNESS  = 0;     // Min = 0
 const int32_t    SSR_MAX_SAMPLES           = 32;
@@ -78,7 +78,7 @@ const float      SSR_MAX_REFLECTION_DIST   = 0.7f;  // Min > 0.0
 const float      SUPER_SAMPLING_FACTOR     = 1.0f;  // Min=1.0 (disabled)
 
 /* Antialiasing (FXAA) */
-const bool       ENABLE_FXAA               = true;
+const bool       ENABLE_FXAA               = false;
 const float      FXAA_LUMA_MIN             = 0.1f;    // Min > 0.0, Max=1.0
 const float      FXAA_LUMA_RANGE_MIN       = 0.1312f; // Min > 0.0, Max=1.0
 const float      FXAA_SUBPX_AA             = 0.5f;    // Min=0.0 (disabled)
@@ -1257,7 +1257,7 @@ init_scene(SceneResources *res)
 
    res->camera = vkdf_camera_new(-20.0f, 3.0f, -1.0f,
                                  0.0f, 180.0f, 0.0f,
-                                 45.0f, 0.1f, 500.0f, WIN_WIDTH / WIN_HEIGHT);
+                                 45.0f, 9.0f, 46.9f, WIN_WIDTH / WIN_HEIGHT);
 
    vkdf_camera_look_at(res->camera, 10.0f, 5.0f, 0.0f);
 
@@ -2528,7 +2528,9 @@ create_debug_tile_renderpass(SceneResources *res, VkFormat format)
 static void
 init_debug_tile_resources(SceneResources *res)
 {
-   res->debug.image = res->scene->rt.gbuffer[0];
+   //res->debug.image = res->scene->rt.gbuffer[0];
+   res->debug.image = res->scene->ssao.depth_resize.image;
+   //res->debug.image = res->scene->rt.depth;
 
    VkdfImage *color_image = vkdf_scene_get_color_render_target(res->scene);
 

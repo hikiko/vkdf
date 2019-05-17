@@ -33,6 +33,15 @@ vkdf_ssao_create_noise_sampler(VkdfContext *ctx)
 }
 
 inline VkSampler
+vkdf_ssao_create_depth_sampler(VkdfContext *ctx)
+{
+   return vkdf_create_depth_sampler(ctx,
+                                    VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
+                                    VK_FILTER_NEAREST,
+                                    VK_SAMPLER_MIPMAP_MODE_NEAREST);
+}
+
+inline VkSampler
 vkdf_ssao_create_ssao_sampler(VkdfContext *ctx, VkFilter filter)
 {
    return vkdf_create_sampler(ctx,

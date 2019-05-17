@@ -367,6 +367,27 @@ struct _VkdfScene {
          VkSampler input_sampler;  // To sample input SSAO texture
       } blur;
 
+      struct {
+         struct {
+            VkPipeline pipeline;
+            VkPipelineLayout layout;
+            VkDescriptorSetLayout depth_set_layout;
+            VkDescriptorSet depth_set;
+            struct {
+               VkShaderModule vs;
+               VkShaderModule fs;
+            } shader;
+         } pipeline;
+
+         VkdfImage image;
+         struct {
+            VkRenderPass renderpass;
+            VkFramebuffer framebuffer;
+         } rp;
+
+         VkSampler depth_sampler;  // To sample depth buffer
+      } depth_resize;
+
       VkCommandBuffer cmd_buf;
    } ssao;
 
@@ -1092,6 +1113,12 @@ vkdf_scene_get_ssao_image(VkdfScene *s)
       return &s->ssao.blur.image;
    else
       return &s->ssao.base.image; /* No blur */
+}
+
+inline VkdfImage *
+vkdf_scene_get_depth_resize_image(VkdfScene *s)
+{
+   return &s->ssao.depth_resize.image;
 }
 
 void

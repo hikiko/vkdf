@@ -88,3 +88,59 @@ vkdf_renderpass_simple_new(VkdfContext *ctx,
 
    return render_pass;
 }
+
+VkRenderPass
+vkdf_create_depth_renderpass(VkdfContext *ctx,
+                             VkAttachmentLoadOp load_op,
+                             VkAttachmentStoreOp store_op,
+                             VkImageLayout depth_initial_layout,
+                             VkImageLayout depth_final_layout)
+{
+   VkAttachmentDescription atts[1];
+
+   // Single depth attachment
+   atts[0].format = VK_FORMAT_D32_SFLOAT;
+   atts[0].samples = VK_SAMPLE_COUNT_1_BIT;
+   atts[0].loadOp = load_op;
+   atts[0].storeOp = store_op;
+   atts[0].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+   atts[0].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+   atts[0].initialLayout = depth_initial_layout;
+   atts[0].finalLayout = depth_final_layout;
+   atts[0].flags = 0;
+
+   // Attachment references from subpasses
+   VkAttachmentReference depth_ref;
+   depth_ref.attachment = 0;
+   depth_ref.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+   // Single subpass
+   VkSubpassDescription subpass[1];
+   subpass[0].pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+   subpass[0].flags = 0;
+   subpass[0].inputAttachmentCount = 0;
+   subpass[0].pInputAttachments = NULL;
+   subpass[0].colorAttachmentCount = 0;
+   subpass[0].pColorAttachments = NULL;
+   subpass[0].pResolveAttachments = NULL;
+   subpass[0].pDepthStencilAttachment = &depth_ref;
+   subpass[0].preserveAttachmentCount = 0;
+   subpass[0].pPreserveAttachments = NULL;
+
+   // Create render pass
+   VkRenderPassCreateInfo rp_info;
+   rp_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+   rp_info.pNext = NULL;
+   rp_info.attachmentCount = 1;
+   rp_info.pAttachments = atts;
+   rp_info.subpassCount = 1;
+   rp_info.pSubpasses = subpass;
+   rp_info.dependencyCount = 0;
+   rp_info.pDependencies = NULL;
+   rp_info.flags = 0;
+
+   VkRenderPass renderpass;
+   VK_CHECK(vkCreateRenderPass(ctx->device, &rp_info, NULL, &renderpass));
+
+   return renderpass;
+}

@@ -217,3 +217,167 @@ vkdf_create_gfx_pipeline(VkdfContext *ctx,
                                    &vs_info,
                                    fs_module ? &fs_info : NULL);
 }
+
+VkPipeline
+vkdf_create_depth_pipeline(VkdfContext *ctx,
+                           VkPipelineCache *pipeline_cache,
+                           uint32_t num_vi_bindings,
+                           VkVertexInputBindingDescription *vi_bindings,
+                           uint32_t num_vi_attribs,
+                           VkVertexInputAttributeDescription *vi_attribs,
+                           bool enable_depth_test,
+                           VkCompareOp depth_compare_op,
+                           VkRenderPass render_pass,
+                           VkPipelineLayout pipeline_layout,
+                           VkPrimitiveTopology primitive,
+                           VkCullModeFlagBits cull_mode,
+                           uint32_t num_color_attachments,
+                           const VkPipelineShaderStageCreateInfo *vs_info,
+                           const VkPipelineShaderStageCreateInfo *fs_info)
+{
+   VkPipeline pipeline;
+
+   // Vertex input
+   VkPipelineVertexInputStateCreateInfo vi;
+   memset(&vi, 0, sizeof vi);
+
+   vi.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+   vi.vertexBindingDescriptionCount = num_vi_bindings;
+   vi.pVertexBindingDescriptions = vi_bindings;
+   vi.vertexAttributeDescriptionCount = num_vi_attribs;
+   vi.pVertexAttributeDescriptions = vi_attribs;
+
+   // Input assembly
+   VkPipelineInputAssemblyStateCreateInfo ia;
+   memset(&ia, 0, sizeof ia);
+
+   ia.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+   ia.topology = primitive;
+
+   // Rasterization
+   VkPipelineRasterizationStateCreateInfo rs;
+   memset(&rs, 0, sizeof rs);
+
+   rs.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+   rs.polygonMode = VK_POLYGON_MODE_FILL;
+   rs.cullMode = cull_mode;
+   rs.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+   rs.lineWidth = 1.0f;
+
+   // Multisampling
+   VkPipelineMultisampleStateCreateInfo ms;
+   memset(&ms, 0, sizeof ms);
+   ms.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+   ms.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+
+   // Depth / Stencil
+   VkPipelineDepthStencilStateCreateInfo ds;
+   memset(&ds, 0, sizeof ds);
+
+   ds.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+   ds.depthTestEnable = VK_TRUE; //FIXME
+   ds.depthWriteEnable = VK_TRUE;
+   ds.depthCompareOp = depth_compare_op;
+   ds.back.compareOp = VK_COMPARE_OP_NEVER;
+   ds.front = ds.back;
+
+   VkPipelineColorBlendStateCreateInfo cb;
+   memset(&cb, 0, sizeof cb);
+   cb.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+
+   // Shader stages
+   VkPipelineShaderStageCreateInfo shader_stages[2];
+   shader_stages[0] = *vs_info;
+   if (fs_info)
+      shader_stages[1] = *fs_info;
+
+   // Viewport (Dynamic)
+   VkPipelineViewportStateCreateInfo vp;
+   memset(&vp, 0, sizeof vp);
+   vp.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+   vp.viewportCount = 1;
+   vp.scissorCount = 1;
+   // Dynamic state (Viewport, Scissor)
+   int dynamic_state_count = 0;
+   VkDynamicState dynamic_state_enables[VK_DYNAMIC_STATE_RANGE_SIZE];
+   memset(dynamic_state_enables, 0, sizeof(dynamic_state_enables));
+   dynamic_state_enables[dynamic_state_count++] =
+      VK_DYNAMIC_STATE_SCISSOR;
+   dynamic_state_enables[dynamic_state_count++] =
+      VK_DYNAMIC_STATE_VIEWPORT;
+
+   VkPipelineDynamicStateCreateInfo dynamic_state_info;
+   memset(&dynamic_state_info, 0, sizeof dynamic_state_info);
+   dynamic_state_info.sType =
+      VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+   dynamic_state_info.pDynamicStates = dynamic_state_enables;
+   dynamic_state_info.dynamicStateCount = dynamic_state_count;
+
+   // Create pipeline
+   VkGraphicsPipelineCreateInfo pipeline_info;
+   memset(&pipeline_info, 0, sizeof pipeline_info);
+
+   pipeline_info.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+   pipeline_info.layout = pipeline_layout;
+   pipeline_info.pVertexInputState = &vi;
+   pipeline_info.pInputAssemblyState = &ia;
+   pipeline_info.pRasterizationState = &rs;
+   pipeline_info.pMultisampleState = &ms;
+   pipeline_info.pDepthStencilState = &ds;
+   pipeline_info.pStages = shader_stages;
+   pipeline_info.stageCount = fs_info ? 2 : 1;
+   pipeline_info.renderPass = render_pass;
+
+   pipeline_info.pDynamicState = &dynamic_state_info;
+   pipeline_info.pViewportState = &vp;
+
+   VK_CHECK(vkCreateGraphicsPipelines(ctx->device,
+            NULL,
+            1,
+            &pipeline_info,
+            NULL,
+            &pipeline));
+
+   return pipeline;
+}
+
+VkPipeline
+vkdf_create_depth_pipeline(VkdfContext *ctx,
+                           VkPipelineCache *pipeline_cache,
+                           uint32_t num_vi_bindings,
+                           VkVertexInputBindingDescription *vi_bindings,
+                           uint32_t num_vi_attribs,
+                           VkVertexInputAttributeDescription *vi_attribs,
+                           bool enable_depth_test,
+                           VkCompareOp depth_compare_op,
+                           VkRenderPass render_pass,
+                           VkPipelineLayout pipeline_layout,
+                           VkPrimitiveTopology primitive,
+                           VkCullModeFlagBits cull_mode,
+                           uint32_t num_color_attachments,
+                           VkShaderModule vs_module,
+                           VkShaderModule fs_module)
+{
+   VkPipelineShaderStageCreateInfo vs_info, fs_info;
+
+   vkdf_pipeline_fill_shader_stage_info(&vs_info,
+         VK_SHADER_STAGE_VERTEX_BIT,
+         vs_module);
+   if (fs_module) {
+      vkdf_pipeline_fill_shader_stage_info(&fs_info,
+            VK_SHADER_STAGE_FRAGMENT_BIT,
+            fs_module);
+   }
+
+   return vkdf_create_depth_pipeline(ctx, pipeline_cache,
+         num_vi_bindings, vi_bindings,
+         num_vi_attribs, vi_attribs,
+         enable_depth_test, depth_compare_op,
+         render_pass,
+         pipeline_layout,
+         primitive,
+         cull_mode,
+         0,
+         &vs_info,
+         fs_module ? &fs_info : NULL);
+}

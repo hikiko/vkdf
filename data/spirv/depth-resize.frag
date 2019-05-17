@@ -1,11 +1,11 @@
-#version 460
+#version 450
 #extension GL_ARB_separate_shader_objects : enable
 
 layout(location = 0) in vec4 in_position;
 layout(location = 1) in vec2 in_uv;
 
 layout(set = 0, binding = 0) uniform sampler2D tex_depth;
-layout (depth_any) out float gl_FragDepth;
+//layout (depth_any) out float gl_FragDepth;
 
 void main()
 {
@@ -19,5 +19,5 @@ void main()
 	   with once min once max, depending on the pattern we need to
 	   check
 	 */
-	gl_FragDepth = max(max(d1, d2), max(d3, d4));
+	gl_FragDepth = 0.5;//max(max(d1, d2), max(d3, d4));
 }
