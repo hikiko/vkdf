@@ -380,6 +380,7 @@ struct _VkdfScene {
          } pipeline;
 
          VkdfImage image;
+         VkdfImage color_image; //FIXME
          struct {
             VkRenderPass renderpass;
             VkFramebuffer framebuffer;
