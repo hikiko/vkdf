@@ -4302,7 +4302,7 @@ record_depth_resize_cmd_buf(VkdfScene *s,
                            0, 1,
                            &s->ssao.depth_resize.pipeline.depth_set,
                            0, NULL);
-   //vkCmdDraw(cmd_buf, 4, 1, 0, 0);
+   vkCmdDraw(cmd_buf, 4, 1, 0, 0);
    VkRect2D r;
    memset(&r, 0, sizeof r);
    r.extent.width = s->ssao.width;
@@ -4327,7 +4327,7 @@ record_depth_resize_cmd_buf(VkdfScene *s,
    color_att.colorAttachment = 0;
    color_att.clearValue = color;
 
-   vkCmdClearAttachments(cmd_buf, 1, &color_att, 1, &rect);
+  // vkCmdClearAttachments(cmd_buf, 1, &color_att, 1, &rect);
    vkCmdEndRenderPass(cmd_buf);
 
 #if 0
