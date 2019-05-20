@@ -2529,7 +2529,7 @@ static void
 init_debug_tile_resources(SceneResources *res)
 {
    //res->debug.image = res->scene->rt.gbuffer[0];
-   res->debug.image = res->scene->ssao.depth_resize.color_image;
+   res->debug.image = res->scene->ssao.depth_resize.image;
    //res->debug.image = res->scene->rt.depth;
 
    VkdfImage *color_image = vkdf_scene_get_color_render_target(res->scene);

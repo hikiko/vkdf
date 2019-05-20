@@ -20,5 +20,5 @@ void main()
 	   check
 	 */
 	gl_FragDepth = max(max(d1, d2), max(d3, d4));
-   out_color = vec4(1.0, 0.2, 0.1, 1.0);
+   out_color = vec4(0.0, gl_FragDepth, 1.0, 1.0);
 }
