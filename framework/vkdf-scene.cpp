@@ -4292,10 +4292,13 @@ record_depth_resize_cmd_buf(VkdfScene *s,
    vkCmdBeginRenderPass(cmd_buf,
                         &rp_begin,
                         VK_SUBPASS_CONTENTS_INLINE);
+
    record_viewport_and_scissor_commands(cmd_buf, s->ssao.width, s->ssao.height);
+
    vkCmdBindPipeline(cmd_buf,
                      VK_PIPELINE_BIND_POINT_GRAPHICS,
                      s->ssao.depth_resize.pipeline.pipeline);
+
    vkCmdBindDescriptorSets(cmd_buf,
                            VK_PIPELINE_BIND_POINT_GRAPHICS,
                            s->ssao.depth_resize.pipeline.layout,
@@ -4303,6 +4306,7 @@ record_depth_resize_cmd_buf(VkdfScene *s,
                            &s->ssao.depth_resize.pipeline.depth_set,
                            0, NULL);
    vkCmdDraw(cmd_buf, 4, 1, 0, 0);
+
    VkRect2D r;
    memset(&r, 0, sizeof r);
    r.extent.width = s->ssao.width;
@@ -4792,7 +4796,6 @@ prepare_ssao_rendering(VkdfScene *s)
                         VK_IMAGE_ASPECT_COLOR_BIT,
                         VK_IMAGE_VIEW_TYPE_2D);
 
-   /* depth resize render pass */
    s->ssao.depth_resize.rp.renderpass =
       vkdf_renderpass_simple_new(s->ctx,
                                  s->ssao.depth_resize.color_image.format,
@@ -4862,7 +4865,7 @@ prepare_ssao_rendering(VkdfScene *s)
                                s->ssao.depth_resize.rp.renderpass,
                                s->ssao.depth_resize.pipeline.layout,
                                VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP,
-                               VK_CULL_MODE_NONE,
+                               VK_CULL_MODE_BACK_BIT,
                                1,
                                &dr_vs_info, &dr_fs_info);
    /* depth resize desc set (sampler) */
