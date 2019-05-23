@@ -43,6 +43,13 @@ vkdf_ssao_create_ssao_sampler(VkdfContext *ctx, VkFilter filter)
 }
 
 inline VkSampler
+vkdf_ssao_create_depth_resize_sampler(VkdfContext *ctx)
+{
+   return vkdf_create_depth_sampler(ctx,
+                                    VK_FILTER_NEAREST);
+}
+
+inline VkSampler
 vkdf_ssao_create_gbuffer_sampler(VkdfContext *ctx)
 {
    return vkdf_create_sampler(ctx,

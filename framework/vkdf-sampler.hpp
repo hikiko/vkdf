@@ -17,4 +17,8 @@ vkdf_create_shadow_sampler(VkdfContext *ctx,
                            VkFilter filter,
                            VkSamplerMipmapMode mipmap_mode);
 
+VkSampler
+vkdf_create_depth_sampler(VkdfContext *ctx,
+                          VkFilter filter);
+
 #endif
