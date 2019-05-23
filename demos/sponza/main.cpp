@@ -3,11 +3,9 @@
 // ================================= CONFIG ===================================
 
 /* Window resolution */
-const float      WIN_WIDTH                 = 800.0f;
-const float      WIN_HEIGHT                = 600.0f;
 
-//const float      WIN_WIDTH                 = 1920.0f;
-//const float      WIN_HEIGHT                = 1080.0f;
+const float      WIN_WIDTH                 = 1920.0f;
+const float      WIN_HEIGHT                = 1080.0f;
 const bool       WIN_FULLSCREEN            = false;
 
 /* Framerate target */
@@ -23,7 +21,7 @@ const uint32_t   SPONZA_FLAG_MESH_IDX      = 4;
  * post-processing callback for this, which means that our debug tile
  * will be post-processed (i.e. affect SSR, etc)
  */
-const bool       SHOW_DEBUG_TILE           = true;
+const bool       SHOW_DEBUG_TILE           = false;
 
 /* Pipeline options */
 const bool       ENABLE_CLIPPING           = true;
@@ -52,7 +50,7 @@ const float      SSAO_BIAS                 = 0.05f;
 const float      SSAO_INTENSITY            = 3.0f;
 const uint32_t   SSAO_BLUR_SIZE            = 2;     // Min=0 (no blur)
 const float      SSAO_BLUR_THRESHOLD       = 0.05f; // Min > 0.0
-const float      SSAO_DOWNSAMPLING         = 2.0f;  // Min=1.0 (no downsampling)
+const float      SSAO_DOWNSAMPLING         = 4.0f;  // Min=1.0 (no downsampling)
 const VkFilter   SSAO_FILTER               = VK_FILTER_NEAREST;
 
 /* High Dynamic Range (HDR) and Tone Mapping */
@@ -274,6 +272,7 @@ typedef struct {
    VkSampler sponza_opacity_sampler;
    VkSampler gbuffer_sampler;
    VkSampler ssao_sampler;
+   VkSampler depth_low_sampler;
 
    VkdfLight *light;
    VkdfSceneShadowSpec shadow_spec;
@@ -1258,8 +1257,8 @@ init_scene(SceneResources *res)
    res->camera = vkdf_camera_new(-20.0f, 3.0f, -1.0f,
                                  0.0f, 180.0f, 0.0f,
                                  //FIXME temporal to debug zbuffer
-                                 45.0f, 8.9f, 46.9f, WIN_WIDTH / WIN_HEIGHT);
-                                 //45.0f, 0.1f, 500.0f, WIN_WIDTH / WIN_HEIGHT);
+                                 //45.0f, 8.9f, 46.9f, WIN_WIDTH / WIN_HEIGHT);
+                                 45.0f, 0.1f, 500.0f, WIN_WIDTH / WIN_HEIGHT);
 
    vkdf_camera_look_at(res->camera, 10.0f, 5.0f, 0.0f);
 
@@ -1774,7 +1773,7 @@ init_pipeline_descriptors(SceneResources *res,
       const uint32_t gbuffer_size = res->scene->rt.gbuffer_size;
       uint32_t num_bindings = 1 + gbuffer_size;
       if (res->scene->ssao.enabled)
-         num_bindings++;
+         num_bindings += 2;
 
       res->pipelines.descr.gbuffer_tex_layout =
          vkdf_create_sampler_descriptor_set_layout(res->ctx, 0,
@@ -1793,6 +1792,10 @@ init_pipeline_descriptors(SceneResources *res,
                              VK_SAMPLER_MIPMAP_MODE_NEAREST,
                              0.0f);
 
+      res->depth_low_sampler =
+         vkdf_create_depth_sampler(res->ctx,
+                                   VK_FILTER_NEAREST);
+
       /* Binding 0: depth buffer */
       uint32_t binding_idx = 0;
       vkdf_descriptor_set_sampler_update(res->ctx,
@@ -1802,7 +1805,7 @@ init_pipeline_descriptors(SceneResources *res,
                                          VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
                                          binding_idx++, 1);
 
-      /* Binding 1..N-1: GBuffer textures */
+      /* Binding 1..N-2: GBuffer textures */
       for (uint32_t idx = 0; idx < gbuffer_size; idx++) {
          VkdfImage *image = vkdf_scene_get_gbuffer_image(res->scene, idx);
          vkdf_descriptor_set_sampler_update(res->ctx,
@@ -1813,7 +1816,7 @@ init_pipeline_descriptors(SceneResources *res,
                                             binding_idx++, 1);
       }
 
-      /* Binding N: SSAO texture */
+      /* Binding N-1: SSAO texture */
       if (res->scene->ssao.enabled) {
          VkdfImage *ssao_image = vkdf_scene_get_ssao_image(res->scene);
          res->ssao_sampler =
@@ -1824,6 +1827,14 @@ init_pipeline_descriptors(SceneResources *res,
                                             ssao_image->view,
                                             VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
                                             binding_idx++, 1);
+
+         /* Binding N: low res depth buffer */
+         vkdf_descriptor_set_sampler_update(res->ctx,
+               res->pipelines.descr.gbuffer_tex_set,
+               res->depth_low_sampler,
+               res->scene->ssao.depth_resize.image.view,
+               VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL,
+               binding_idx++, 1);
       }
 
       assert(num_bindings == binding_idx);
@@ -2762,6 +2773,7 @@ destroy_samplers(SceneResources *res)
    vkDestroySampler(res->ctx->device, res->sponza_opacity_sampler, NULL);
    vkDestroySampler(res->ctx->device, res->gbuffer_sampler, NULL);
    vkDestroySampler(res->ctx->device, res->ssao_sampler, NULL);
+   vkDestroySampler(res->ctx->device, res->depth_low_sampler, NULL);
 }
 
 void

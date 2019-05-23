@@ -6,6 +6,40 @@ INCLUDE(../../data/glsl/lighting.glsl)
 
 INCLUDE(../../data/glsl/util.glsl)
 
+int select_offset(in sampler2D depth_tex, in sampler2D depth_low_tex, in vec2 in_uv)
+{
+   /* texture offset needs to be a compile time constant and so we can't
+    * use a loop for the following steps, unfortunately.
+    */
+
+   float d0 = texture(depth_tex, in_uv).x;
+
+   /* calculating the distances between the depths of the pixels
+    * in the lowres neighborhood and the full res depth value
+    * (texture offset must be compile time constant and so we
+    * can't use a loop)
+    */
+
+   float d1 = abs(d0 - textureOffset(depth_low_tex, in_uv, ivec2(0, 0)).x);
+   float d2 = abs(d0 - textureOffset(depth_low_tex, in_uv, ivec2(0, 1)).x);
+   float d3 = abs(d0 - textureOffset(depth_low_tex, in_uv, ivec2(1, 0)).x);
+   float d4 = abs(d0 - textureOffset(depth_low_tex, in_uv, ivec2(1, 1)).x);
+
+   float dmin = min(min(d1, d2), min(d3, d4));
+
+   if (dmin == d1)
+      return 0;
+
+   if (dmin == d2)
+      return 1;
+
+   if (dmin == d3)
+      return 2;
+
+   if (dmin == d4)
+      return 3;
+}
+
 layout(push_constant) uniform pcb {
    mat4 Proj;
    float aspect_ratio;
@@ -49,11 +83,32 @@ layout(set = 3, binding = 1) uniform sampler2D tex_eye_normal;
 layout(set = 3, binding = 2) uniform sampler2D tex_diffuse;
 layout(set = 3, binding = 3) uniform sampler2D tex_specular;
 layout(set = 3, binding = 4) uniform sampler2D tex_ssao;
+layout(set = 3, binding = 6) uniform sampler2D tex_depth_lowres;
 
 layout(location = 0) out vec4 out_color;
 
 void main()
 {
-   float ambient_occlusion = texture(tex_ssao, in_uv).r;
+   int pixel_offs = select_offset(tex_depth, tex_depth_lowres, in_uv);
+   float ambient_occlusion;
+
+   switch (pixel_offs) {
+   case 0:
+      ambient_occlusion = textureOffset(tex_ssao, in_uv, ivec2(0, 0)).r;
+      break;
+   case 1:
+      ambient_occlusion = textureOffset(tex_ssao, in_uv, ivec2(0, 1)).r;
+      break;
+   case 2:
+      ambient_occlusion = textureOffset(tex_ssao, in_uv, ivec2(1, 0)).r;
+      break;
+   case 3:
+      ambient_occlusion = textureOffset(tex_ssao, in_uv, ivec2(1, 1)).r;
+      break;
+   default:
+      texture(tex_ssao, in_uv).r;
+      break;
+   }
+
    INCLUDE(compute_deferred_lighting.glsl)
 }
