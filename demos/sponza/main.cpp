@@ -6,7 +6,7 @@
 
 const float      WIN_WIDTH                 = 1920.0f;
 const float      WIN_HEIGHT                = 1080.0f;
-const bool       WIN_FULLSCREEN            = false;
+const bool       WIN_FULLSCREEN            = true;
 
 /* Framerate target */
 const float      FRAMERATE_TARGET          = 60.0f;
