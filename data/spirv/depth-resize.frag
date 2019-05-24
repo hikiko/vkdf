@@ -27,8 +27,8 @@ void main()
     * the min or the max depth in the downsampling
     */
 
-   if (min_or_max == 1)
+ /*  if (min_or_max == 1)
       gl_FragDepth = max(max(d1, d2), max(d3, d4));
-   else
+   else */
       gl_FragDepth = min(min(d1, d2), min(d3, d4));
 }
