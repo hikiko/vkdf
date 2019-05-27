@@ -6,7 +6,10 @@ INCLUDE(../../data/glsl/lighting.glsl)
 
 INCLUDE(../../data/glsl/util.glsl)
 
-int select_offset(in sampler2D depth_tex, in sampler2D depth_low_tex, in vec2 in_uv)
+float nearest_depth_occlusion(in sampler2D ssao_tex,
+                              in sampler2D depth_tex,
+                              in sampler2D depth_low_tex,
+                              in vec2 in_uv)
 {
    /* texture offset needs to be a compile time constant and so we can't
     * use a loop for the following steps, unfortunately.
@@ -28,16 +31,41 @@ int select_offset(in sampler2D depth_tex, in sampler2D depth_low_tex, in vec2 in
    float dmin = min(min(d1, d2), min(d3, d4));
 
    if (dmin == d1)
-      return 0;
+      return textureOffset(ssao_tex, in_uv, ivec2(0, 0)).x;
 
    if (dmin == d2)
-      return 1;
+      return textureOffset(ssao_tex, in_uv, ivec2(0, 1)).x;
 
    if (dmin == d3)
-      return 2;
+      return textureOffset(ssao_tex, in_uv, ivec2(1, 0)).x;
 
    if (dmin == d4)
-      return 3;
+      return textureOffset(ssao_tex, in_uv, ivec2(1, 1)).x;
+}
+
+float select_ambient_occlusion(in sampler2D depth_tex,
+                               in sampler2D ssao_tex,
+                               in sampler2D low_normal_tex,
+                               in sampler2D low_depth_tex,
+                               in vec2 in_uv)
+{
+   /* taking the normals of the neighborhood */
+   vec3 n0 = textureOffset(low_normal_tex, in_uv, ivec2(0, 0)).xyz;
+   vec3 n1 = textureOffset(low_normal_tex, in_uv, ivec2(0, 1)).xyz;
+   vec3 n2 = textureOffset(low_normal_tex, in_uv, ivec2(1, 0)).xyz;
+   vec3 n3 = textureOffset(low_normal_tex, in_uv, ivec2(1, 1)).xyz;
+
+   /* we need to find the maximum dot product */
+   float d0 = abs(dot(n0, n1));
+   float d1 = abs(dot(n0, n2));
+   float d2 = abs(dot(n0, n3));
+
+   float max_dot = max(d0, max(d1, d2));
+   //float selectioddn = step(0.895, max_dot);
+
+   float lerp_occlusion = texture(ssao_tex, in_uv).x;
+   float best_depth_occlusion = nearest_depth_occlusion(ssao_tex, depth_tex, low_depth_tex, in_uv);
+   return mix(lerp_occlusion, best_depth_occlusion, step(0.895, max_dot));
 }
 
 layout(push_constant) uniform pcb {
@@ -84,31 +112,20 @@ layout(set = 3, binding = 2) uniform sampler2D tex_diffuse;
 layout(set = 3, binding = 3) uniform sampler2D tex_specular;
 layout(set = 3, binding = 4) uniform sampler2D tex_ssao;
 layout(set = 3, binding = 6) uniform sampler2D tex_depth_lowres;
+layout(set = 3, binding = 7) uniform sampler2D tex_normal_lowres;
 
 layout(location = 0) out vec4 out_color;
 
 void main()
 {
-   int pixel_offs = select_offset(tex_depth, tex_depth_lowres, in_uv);
-   float ambient_occlusion;
+   //int pixel_offs = select_offset(tex_depth, tex_depth_lowres, in_uv);
+   float ambient_occlusion = select_ambient_occlusion(tex_ssao,
+                                                      tex_depth,
+                                                      tex_depth_lowres,
+                                                      tex_normal_lowres,
+                                                      in_uv);
 
-   switch (pixel_offs) {
-   case 0:
-      ambient_occlusion = textureOffset(tex_ssao, in_uv, ivec2(0, 0)).r;
-      break;
-   case 1:
-      ambient_occlusion = textureOffset(tex_ssao, in_uv, ivec2(0, 1)).r;
-      break;
-   case 2:
-      ambient_occlusion = textureOffset(tex_ssao, in_uv, ivec2(1, 0)).r;
-      break;
-   case 3:
-      ambient_occlusion = textureOffset(tex_ssao, in_uv, ivec2(1, 1)).r;
-      break;
-   default:
-      texture(tex_ssao, in_uv).r;
-      break;
-   }
 
    INCLUDE(compute_deferred_lighting.glsl)
+   //out_color = vec4(0.0, 0.0, ambient_occlusion, 1.0);
 }

@@ -6,7 +6,7 @@
 
 const float      WIN_WIDTH                 = 1920.0f;
 const float      WIN_HEIGHT                = 1080.0f;
-const bool       WIN_FULLSCREEN            = false;
+const bool       WIN_FULLSCREEN            = true;
 
 /* Framerate target */
 const float      FRAMERATE_TARGET          = 60.0f;
@@ -50,7 +50,7 @@ const float      SSAO_BIAS                 = 0.05f;
 const float      SSAO_INTENSITY            = 3.0f;
 const uint32_t   SSAO_BLUR_SIZE            = 2;     // Min=0 (no blur)
 const float      SSAO_BLUR_THRESHOLD       = 0.05f; // Min > 0.0
-const float      SSAO_DOWNSAMPLING         = 4.0f;  // Min=1.0 (no downsampling)
+const float      SSAO_DOWNSAMPLING         = 8.0f;  // Min=1.0 (no downsampling)
 const VkFilter   SSAO_FILTER               = VK_FILTER_NEAREST;
 
 /* High Dynamic Range (HDR) and Tone Mapping */
@@ -64,7 +64,7 @@ const glm::vec4  SUN_SPECULAR              = glm::vec4(3.0f, 3.0f, 3.0f, 1.0f);
 const glm::vec4  SUN_AMBIENT               = glm::vec4(0.1f, 0.1f, 0.1f, 1.0f);
 
 /* Screen Space Reflections (SSR) */
-const bool       ENABLE_SSR                = false;
+const bool       ENABLE_SSR                = true;
 const float      SSR_REFLECTION_STRENGTH   = 0.1f;  // Min > 0.0, Max=1.0
 const int        SSR_REFLECTION_ROUGHNESS  = 0;     // Min = 0
 const int32_t    SSR_MAX_SAMPLES           = 32;
@@ -273,6 +273,7 @@ typedef struct {
    VkSampler gbuffer_sampler;
    VkSampler ssao_sampler;
    VkSampler depth_low_sampler;
+   VkSampler normal_low_sampler;
 
    VkdfLight *light;
    VkdfSceneShadowSpec shadow_spec;
@@ -1773,7 +1774,7 @@ init_pipeline_descriptors(SceneResources *res,
       const uint32_t gbuffer_size = res->scene->rt.gbuffer_size;
       uint32_t num_bindings = 1 + gbuffer_size;
       if (res->scene->ssao.enabled)
-         num_bindings += 2;
+         num_bindings += 3;
 
       res->pipelines.descr.gbuffer_tex_layout =
          vkdf_create_sampler_descriptor_set_layout(res->ctx, 0,
@@ -1795,6 +1796,13 @@ init_pipeline_descriptors(SceneResources *res,
       res->depth_low_sampler =
          vkdf_create_depth_sampler(res->ctx,
                                    VK_FILTER_NEAREST);
+
+      res->normal_low_sampler =
+         vkdf_create_sampler(res->ctx,
+                             VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
+                             VK_FILTER_NEAREST,
+                             VK_SAMPLER_MIPMAP_MODE_NEAREST,
+                             0.0f);
 
       /* Binding 0: depth buffer */
       uint32_t binding_idx = 0;
@@ -1834,6 +1842,14 @@ init_pipeline_descriptors(SceneResources *res,
                res->depth_low_sampler,
                res->scene->ssao.depth_resize.image.view,
                VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL,
+               binding_idx++, 1);
+
+         /* Binding N+1: low res normals texture */
+         vkdf_descriptor_set_sampler_update(res->ctx,
+               res->pipelines.descr.gbuffer_tex_set,
+               res->normal_low_sampler,
+               res->scene->ssao.depth_resize.color_image.view,
+               VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
                binding_idx++, 1);
       }
 
@@ -2542,7 +2558,7 @@ static void
 init_debug_tile_resources(SceneResources *res)
 {
    //res->debug.image = res->scene->rt.gbuffer[0];
-   res->debug.image = res->scene->ssao.depth_resize.image;
+   res->debug.image = res->scene->ssao.depth_resize.color_image;
 
    VkdfImage *color_image = vkdf_scene_get_color_render_target(res->scene);
 

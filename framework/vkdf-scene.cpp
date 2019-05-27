@@ -738,9 +738,11 @@ destroy_ssao_resources(VkdfScene *s)
          s->ssao.depth_resize.pipeline.shader.fs, NULL);
 
    vkDestroySampler(s->ctx->device, s->ssao.depth_resize.depth_sampler, NULL);
+   vkDestroySampler(s->ctx->device, s->ssao.depth_resize.normal_sampler, NULL);
    vkDestroyRenderPass(s->ctx->device, s->ssao.depth_resize.rp.renderpass, NULL);
    vkDestroyFramebuffer(s->ctx->device, s->ssao.depth_resize.rp.framebuffer, NULL);
    vkdf_destroy_image(s->ctx, &s->ssao.depth_resize.image);
+   vkdf_destroy_image(s->ctx, &s->ssao.depth_resize.color_image);
 }
 
 static void
@@ -4379,7 +4381,7 @@ record_ssao_cmd_buf(VkdfScene *s)
 static void
 prepare_ssao_rendering(VkdfScene *s)
 {
-   /* SSAO render target output */
+   /* SSAO depth render target output */
    s->ssao.base.image =
       vkdf_create_image(s->ctx,
                         s->ssao.width,
@@ -4667,30 +4669,45 @@ prepare_ssao_rendering(VkdfScene *s)
    }
 
    /* depth resize */
-   //FIXME: take them all from the other branch
    s->ssao.depth_resize.image =
       vkdf_create_image(s->ctx,
-            s->ssao.width,
-            s->ssao.height,
-            1,
-            VK_IMAGE_TYPE_2D,
-            VK_FORMAT_D32_SFLOAT,
-            VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT |
-            VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT,
-            VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT |
-            VK_IMAGE_USAGE_SAMPLED_BIT |
-            VK_IMAGE_USAGE_TRANSFER_SRC_BIT |
-            VK_IMAGE_USAGE_TRANSFER_DST_BIT,
-            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-            VK_IMAGE_ASPECT_DEPTH_BIT,
-            VK_IMAGE_VIEW_TYPE_2D);
+                        s->ssao.width,
+                        s->ssao.height,
+                        1,
+                        VK_IMAGE_TYPE_2D,
+                        VK_FORMAT_D32_SFLOAT,
+                        VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT |
+                        VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT,
+                        VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT |
+                        VK_IMAGE_USAGE_SAMPLED_BIT |
+                        VK_IMAGE_USAGE_TRANSFER_SRC_BIT |
+                        VK_IMAGE_USAGE_TRANSFER_DST_BIT,
+                        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                        VK_IMAGE_ASPECT_DEPTH_BIT,
+                        VK_IMAGE_VIEW_TYPE_2D);
+
+   /*depth resize normals render target output */
+   s->ssao.depth_resize.color_image =
+      vkdf_create_image(s->ctx,
+                        s->ssao.width,
+                        s->ssao.height,
+                        1,
+                        VK_IMAGE_TYPE_2D,
+                        VK_FORMAT_R8G8B8A8_UNORM,
+                        VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT |
+                        VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT,
+                        VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT |
+                        VK_IMAGE_USAGE_SAMPLED_BIT,
+                        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                        VK_IMAGE_ASPECT_COLOR_BIT,
+                        VK_IMAGE_VIEW_TYPE_2D);
 
    /* depth resize render pass */
    s->ssao.depth_resize.rp.renderpass =
       vkdf_renderpass_simple_new(s->ctx,
-                                 VK_FORMAT_UNDEFINED,
+                                 s->ssao.depth_resize.color_image.format,
                                  VK_ATTACHMENT_LOAD_OP_DONT_CARE,
-                                 VK_ATTACHMENT_STORE_OP_DONT_CARE,
+                                 VK_ATTACHMENT_STORE_OP_STORE,
                                  VK_IMAGE_LAYOUT_UNDEFINED,
                                  VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
                                  s->ssao.depth_resize.image.format,
@@ -4700,16 +4717,24 @@ prepare_ssao_rendering(VkdfScene *s)
                                  VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
 
    /* depth resize framebuffer */
+#if 0
    s->ssao.depth_resize.rp.framebuffer =
       create_depth_framebuffer(s,
                                s->ssao.width,
                                s->ssao.height,
                                s->ssao.depth_resize.rp.renderpass,
                                s->ssao.depth_resize.image.view);
+#endif
+
+   s->ssao.depth_resize.rp.framebuffer = vkdf_create_framebuffer(s->ctx,
+         s->ssao.depth_resize.rp.renderpass,
+         s->ssao.depth_resize.color_image.view,
+         s->ssao.width, s->ssao.height,
+         1, &s->ssao.depth_resize.image);
 
    /* depth resize desc set layout */
    s->ssao.depth_resize.pipeline.depth_set_layout =
-      vkdf_create_sampler_descriptor_set_layout(s->ctx, 0, 1,
+      vkdf_create_sampler_descriptor_set_layout(s->ctx, 0, 2,
                                                 VK_SHADER_STAGE_FRAGMENT_BIT);
 
    memset(&info, 0, sizeof info);
@@ -4750,7 +4775,7 @@ prepare_ssao_rendering(VkdfScene *s)
                                s->ssao.depth_resize.pipeline.layout,
                                VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP,
                                VK_CULL_MODE_BACK_BIT,
-                               0,
+                               1,
                                &dr_vs_info, &dr_fs_info);
 
    /* depth resize desc set (sampler) */
@@ -4768,6 +4793,13 @@ prepare_ssao_rendering(VkdfScene *s)
                                       s->rt.depth.view,
                                       VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL,
                                       SSAO_DEPTH_TEX_BINDING, 1);
+
+   vkdf_descriptor_set_sampler_update(s->ctx,
+                                      s->ssao.depth_resize.pipeline.depth_set,
+                                      s->ssao.depth_resize.normal_sampler,
+                                      s->rt.gbuffer[GBUFFER_EYE_NORMAL_IDX].view,
+                                      VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                                      SSAO_NORMAL_TEX_BINDING, 1);
 
    /* Command buffer */
    s->ssao.cmd_buf = record_ssao_cmd_buf(s);

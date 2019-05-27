@@ -7,15 +7,11 @@ float checkerboard(in vec2 uv)
    return mod(pos.x + mod(pos.y, 2.0), 2.0);
 }
 
-layout(location = 0) in vec4 in_position;
-layout(location = 1) in vec2 in_uv;
-
-layout(set = 0, binding = 0) uniform sampler2D tex_depth;
-layout (depth_any) out float gl_FragDepth;
-
-void main()
+void downsample(in sampler2D tex_depth, in sampler2D tex_normal,
+                in vec2 in_uv,
+                out float depth, out vec3 normal)
 {
-   int min_or_max = int(checkerboard(in_uv));
+   int cb = int(checkerboard(in_uv));
 
    float d1 = textureOffset(tex_depth, in_uv, ivec2(0, 0)).x;
    float d2 = textureOffset(tex_depth, in_uv, ivec2(0, 1)).x;
@@ -27,8 +23,37 @@ void main()
     * the min or the max depth in the downsampling
     */
 
-   if (min_or_max == 1)
-      gl_FragDepth = max(max(d1, d2), max(d3, d4));
+   if (cb == 1)
+      depth = max(max(d1, d2), max(d3, d4));
    else
-      gl_FragDepth = min(min(d1, d2), min(d3, d4));
+      depth = min(min(d1, d2), min(d3, d4));
+
+   /* then we select the normal of the sample with the selected depth */
+   if (depth == d1)
+      normal = textureOffset(tex_normal, in_uv, ivec2(0, 0)).xyz;
+   else if (depth == d2)
+      normal = textureOffset(tex_normal, in_uv, ivec2(0, 1)).xyz;
+   else if (depth == d3)
+      normal = textureOffset(tex_normal, in_uv, ivec2(1, 0)).xyz;
+   else if (depth == d4)
+      normal = textureOffset(tex_normal, in_uv, ivec2(1, 1)).xyz;
+}
+
+layout(location = 0) in vec4 in_position;
+layout(location = 1) in vec2 in_uv;
+
+layout(set = 0, binding = 0) uniform sampler2D tex_depth;
+layout(set = 0, binding = 1) uniform sampler2D tex_normal;
+
+//layout (depth_any) out float gl_FragDepth;
+layout (location = 0) out vec4 out_color; 
+
+void main()
+{
+   float depth;
+   vec3 normal;
+   downsample(tex_depth, tex_normal, in_uv, depth, normal);
+
+   gl_FragDepth = depth;
+   out_color = vec4(normal, 1.0);
 }

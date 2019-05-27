@@ -379,13 +379,16 @@ struct _VkdfScene {
             } shader;
          } pipeline;
 
-         VkdfImage image;
+         VkdfImage image; // resized depth render target
+         VkdfImage color_image; // resized normal render target
+
          struct {
             VkRenderPass renderpass;
             VkFramebuffer framebuffer;
          } rp;
 
          VkSampler depth_sampler;  // To sample the depth buffer
+         VkSampler normal_sampler; // To sample the normals
       } depth_resize;
 
       VkCommandBuffer cmd_buf;
