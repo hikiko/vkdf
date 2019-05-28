@@ -113,8 +113,8 @@ layout(set = 3, binding = 1) uniform sampler2D tex_eye_normal;
 layout(set = 3, binding = 2) uniform sampler2D tex_diffuse;
 layout(set = 3, binding = 3) uniform sampler2D tex_specular;
 layout(set = 3, binding = 4) uniform sampler2D tex_ssao;
-layout(set = 3, binding = 6) uniform sampler2D tex_depth_lowres;
-layout(set = 3, binding = 7) uniform sampler2D tex_normal_lowres;
+layout(set = 4, binding = 0) uniform sampler2D tex_depth_lowres;
+layout(set = 4, binding = 1) uniform sampler2D tex_normal_lowres;
 
 layout(location = 0) out vec4 out_color;
 

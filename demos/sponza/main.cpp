@@ -211,6 +211,9 @@ typedef struct {
 
          VkDescriptorSetLayout gbuffer_tex_layout;
          VkDescriptorSet gbuffer_tex_set;
+
+		 VkDescriptorSetLayout resize_tex_layout;
+		 VkDescriptorSet resize_tex_set;
       } descr;
 
       struct {
@@ -787,14 +790,15 @@ record_gbuffer_merge_commands(VkdfContext *ctx,
       res->pipelines.descr.camera_view_set,
       res->pipelines.descr.light_set,
       res->pipelines.descr.shadow_map_sampler_set,
-      res->pipelines.descr.gbuffer_tex_set
+      res->pipelines.descr.gbuffer_tex_set,
+	  res->pipelines.descr.resize_tex_set
    };
 
    vkCmdBindDescriptorSets(cmd_buf,
                            VK_PIPELINE_BIND_POINT_GRAPHICS,
                            res->pipelines.layout.gbuffer_merge,
                            0,                        // First decriptor set
-                           4,                        // Descriptor set count
+                           5,                        // Descriptor set count
                            descriptor_sets,          // Descriptor sets
                            0,                        // Dynamic offset count
                            NULL);                    // Dynamic offsets
@@ -1774,7 +1778,7 @@ init_pipeline_descriptors(SceneResources *res,
       const uint32_t gbuffer_size = res->scene->rt.gbuffer_size;
       uint32_t num_bindings = 1 + gbuffer_size;
       if (res->scene->ssao.enabled)
-         num_bindings += 3;
+         num_bindings++;
 
       res->pipelines.descr.gbuffer_tex_layout =
          vkdf_create_sampler_descriptor_set_layout(res->ctx, 0,
@@ -1793,6 +1797,34 @@ init_pipeline_descriptors(SceneResources *res,
                              VK_SAMPLER_MIPMAP_MODE_NEAREST,
                              0.0f);
 
+	  if (res->scene->ssao.enabled) {
+		  res->pipelines.descr.resize_tex_layout =
+			  vkdf_create_sampler_descriptor_set_layout(res->ctx, 0, 2, VK_SHADER_STAGE_FRAGMENT_BIT);
+		  res->pipelines.descr.resize_tex_set =
+			  vkdf_descriptor_set_create(res->ctx, res->descriptor_pool.sampler_pool,
+					  					 res->pipelines.descr.resize_tex_layout);
+		 res->depth_low_sampler =
+			 vkdf_create_depth_sampler(res->ctx, VK_FILTER_NEAREST);
+
+		 res->normal_low_sampler =
+			 vkdf_create_depth_sampler(res->ctx, VK_FILTER_NEAREST);
+
+         vkdf_descriptor_set_sampler_update(res->ctx,
+										    res->pipelines.descr.resize_tex_set,
+											res->depth_low_sampler,
+											res->scene->ssao.depth_resize.image.view,
+											VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL,
+											0, 1);
+
+         vkdf_descriptor_set_sampler_update(res->ctx,
+										    res->pipelines.descr.resize_tex_set,
+											res->normal_low_sampler,
+											res->scene->ssao.depth_resize.color_image.view,
+											VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+											1, 1);
+
+	  }
+
       /* Binding 0: depth buffer */
       uint32_t binding_idx = 0;
       vkdf_descriptor_set_sampler_update(res->ctx,
@@ -1802,7 +1834,7 @@ init_pipeline_descriptors(SceneResources *res,
                                          VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
                                          binding_idx++, 1);
 
-      /* Binding 1..N-2: GBuffer textures */
+      /* Binding 1..N-1: GBuffer textures */
       for (uint32_t idx = 0; idx < gbuffer_size; idx++) {
          VkdfImage *image = vkdf_scene_get_gbuffer_image(res->scene, idx);
          vkdf_descriptor_set_sampler_update(res->ctx,
@@ -1813,17 +1845,11 @@ init_pipeline_descriptors(SceneResources *res,
                                             binding_idx++, 1);
       }
 
-      /* Binding N-1: SSAO texture */
+      /* Binding N: SSAO texture */
       if (res->scene->ssao.enabled) {
          VkdfImage *ssao_image = vkdf_scene_get_ssao_image(res->scene);
          res->ssao_sampler =
             vkdf_ssao_create_ssao_sampler(res->ctx, SSAO_FILTER);
-
-		 res->depth_low_sampler =
-			 vkdf_create_depth_sampler(res->ctx, VK_FILTER_NEAREST);
-
-		 res->normal_low_sampler =
-			 vkdf_create_depth_sampler(res->ctx, VK_FILTER_NEAREST);
 
          vkdf_descriptor_set_sampler_update(res->ctx,
                                             res->pipelines.descr.gbuffer_tex_set,
@@ -1831,22 +1857,6 @@ init_pipeline_descriptors(SceneResources *res,
                                             ssao_image->view,
                                             VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
                                             binding_idx++, 1);
-
-         /* Binding N: low res depth buffer */
-         vkdf_descriptor_set_sampler_update(res->ctx,
-										    res->pipelines.descr.gbuffer_tex_set,
-											res->depth_low_sampler,
-											res->scene->ssao.depth_resize.image.view,
-											VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL,
-											binding_idx++, 1);
-
-         /* Binding N+1: low res normals texture */
-         vkdf_descriptor_set_sampler_update(res->ctx,
-										    res->pipelines.descr.gbuffer_tex_set,
-											res->normal_low_sampler,
-											res->scene->ssao.depth_resize.color_image.view,
-											VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-											binding_idx++, 1);
       }
 
       assert(num_bindings == binding_idx);
@@ -1856,7 +1866,8 @@ init_pipeline_descriptors(SceneResources *res,
          res->pipelines.descr.camera_view_layout,
          res->pipelines.descr.light_layout,
          res->pipelines.descr.shadow_map_sampler_layout,
-         res->pipelines.descr.gbuffer_tex_layout
+         res->pipelines.descr.gbuffer_tex_layout,
+		 res->pipelines.descr.resize_tex_layout
       };
 
       VkPipelineLayoutCreateInfo pipeline_layout_info;
@@ -1864,7 +1875,7 @@ init_pipeline_descriptors(SceneResources *res,
       pipeline_layout_info.pNext = NULL;
       pipeline_layout_info.pushConstantRangeCount = 1;
       pipeline_layout_info.pPushConstantRanges = &pcb_recons_range;
-      pipeline_layout_info.setLayoutCount = 4;
+      pipeline_layout_info.setLayoutCount = 5;
       pipeline_layout_info.pSetLayouts = gbuffer_merge_layouts;
       pipeline_layout_info.flags = 0;
 
@@ -2717,10 +2728,15 @@ destroy_pipelines(SceneResources *res)
       vkFreeDescriptorSets(res->ctx->device,
                            res->descriptor_pool.sampler_pool,
                            1, &res->pipelines.descr.gbuffer_tex_set);
+      vkFreeDescriptorSets(res->ctx->device,
+                           res->descriptor_pool.sampler_pool,
+                           1, &res->pipelines.descr.resize_tex_set);
    }
 
    vkDestroyDescriptorSetLayout(res->ctx->device,
                                 res->pipelines.descr.gbuffer_tex_layout, NULL);
+   vkDestroyDescriptorSetLayout(res->ctx->device,
+                                res->pipelines.descr.resize_tex_layout, NULL);
 
    /* Descriptor pools */
    vkDestroyDescriptorPool(res->ctx->device,
