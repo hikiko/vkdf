@@ -1999,6 +1999,11 @@ create_gbuffer_pipeline(VkdfContext *ctx,
    return pipeline;
 }
 
+struct SpecializationData {
+   uint32_t shadow_map_pcf_size;
+   float downsampling;
+};
+
 static inline VkPipeline
 create_gbuffer_merge_pipeline(SceneResources *res, bool use_ssao)
 {
@@ -2013,14 +2018,23 @@ create_gbuffer_merge_pipeline(SceneResources *res, bool use_ssao)
    VkShaderModule fs = use_ssao ? res->shaders.gbuffer_merge.fs_ssao :
                                   res->shaders.gbuffer_merge.fs;
 
-   VkPipelineShaderStageCreateInfo fs_info;
-   VkSpecializationMapEntry entry = { 0, 0, sizeof(uint32_t) };
-   VkSpecializationInfo fs_spec_info = {
-      1,
-      &entry,
-      sizeof(uint32_t),
-      &SHADOW_MAP_PCF_SIZE
+   SpecializationData data = {
+      SHADOW_MAP_PCF_SIZE,
+      SSAO_DOWNSAMPLING
    };
+   VkSpecializationMapEntry entries[] = {
+      {0, 0, sizeof data.shadow_map_pcf_size},
+      {1, offsetof(SpecializationData, downsampling), sizeof data.downsampling}
+   };
+
+   VkSpecializationInfo fs_spec_info = {
+      2,
+      entries,
+      sizeof data,
+      &data
+   };
+
+   VkPipelineShaderStageCreateInfo fs_info;
    vkdf_pipeline_fill_shader_stage_info(&fs_info,
                                         VK_SHADER_STAGE_FRAGMENT_BIT,
                                         fs, &fs_spec_info);
