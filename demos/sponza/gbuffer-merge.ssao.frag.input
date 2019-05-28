@@ -43,8 +43,8 @@ float nearest_depth_occlusion(in sampler2D ssao_tex,
       return textureOffset(ssao_tex, in_uv, ivec2(1, 1)).x;
 }
 
-float select_ambient_occlusion(in sampler2D depth_tex,
-                               in sampler2D ssao_tex,
+float select_ambient_occlusion(in sampler2D ssao_tex,
+                               in sampler2D depth_tex,
                                in sampler2D low_normal_tex,
                                in sampler2D low_depth_tex,
                                in vec2 in_uv)
@@ -61,11 +61,13 @@ float select_ambient_occlusion(in sampler2D depth_tex,
    float d2 = abs(dot(n0, n3));
 
    float max_dot = max(d0, max(d1, d2));
-   //float selectioddn = step(0.895, max_dot);
+   float selection = step(0.9, max_dot);
 
    float lerp_occlusion = texture(ssao_tex, in_uv).x;
    float best_depth_occlusion = nearest_depth_occlusion(ssao_tex, depth_tex, low_depth_tex, in_uv);
-   return mix(lerp_occlusion, best_depth_occlusion, step(0.895, max_dot));
+   //return mix(lerp_occlusion, best_depth_occlusion, step(0.895, max_dot));
+   //return lerp_occlusion;
+   return best_depth_occlusion;
 }
 
 layout(push_constant) uniform pcb {
@@ -127,5 +129,5 @@ void main()
 
 
    INCLUDE(compute_deferred_lighting.glsl)
-   //out_color = vec4(0.0, 0.0, ambient_occlusion, 1.0);
+   out_color = vec4(0.0, 0.0, ambient_occlusion, 1.0);
 }
