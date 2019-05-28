@@ -2811,7 +2811,7 @@ main()
    VkdfContext ctx;
    SceneResources resources;
 
-   vkdf_init(&ctx, WIN_WIDTH, WIN_HEIGHT, WIN_FULLSCREEN, false, false);
+   vkdf_init(&ctx, WIN_WIDTH, WIN_HEIGHT, WIN_FULLSCREEN, false, true);
    vkdf_platform_mouse_enable_relative_mode(&ctx.platform);
    vkdf_set_framerate_target(&ctx, FRAMERATE_TARGET);
 
