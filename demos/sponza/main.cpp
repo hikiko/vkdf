@@ -6,7 +6,7 @@
 
 const float      WIN_WIDTH                 = 1920.0f;
 const float      WIN_HEIGHT                = 1080.0f;
-const bool       WIN_FULLSCREEN            = false;
+const bool       WIN_FULLSCREEN            = true;
 
 /* Framerate target */
 const float      FRAMERATE_TARGET          = 60.0f;
@@ -50,7 +50,7 @@ const float      SSAO_BIAS                 = 0.05f;
 const float      SSAO_INTENSITY            = 3.0f;
 const uint32_t   SSAO_BLUR_SIZE            = 2;     // Min=0 (no blur)
 const float      SSAO_BLUR_THRESHOLD       = 0.05f; // Min > 0.0
-const float      SSAO_DOWNSAMPLING         = 4.0f;  // Min=1.0 (no downsampling)
+const float      SSAO_DOWNSAMPLING         = 2.0f;  // Min=1.0 (no downsampling)
 const VkFilter   SSAO_FILTER               = VK_FILTER_NEAREST;
 
 /* High Dynamic Range (HDR) and Tone Mapping */
