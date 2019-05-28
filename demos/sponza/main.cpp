@@ -1823,10 +1823,7 @@ init_pipeline_descriptors(SceneResources *res,
 			 vkdf_create_depth_sampler(res->ctx, VK_FILTER_NEAREST);
 
 		 res->normal_low_sampler =
-			 vkdf_create_sampler(res->ctx,
-								 VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_FILTER_NEAREST,
-								 VK_SAMPLER_MIPMAP_MODE_NEAREST,
-								 0.0f);
+			 vkdf_ssao_create_ssao_sampler(res->ctx, VK_FILTER_NEAREST);
 
          vkdf_descriptor_set_sampler_update(res->ctx,
                                             res->pipelines.descr.gbuffer_tex_set,
