@@ -61,7 +61,7 @@ float select_ambient_occlusion(in sampler2D ssao_tex,
    float d2 = abs(dot(n0, n3));
 
    float max_dot = max(d0, max(d1, d2));
-   float selection = step(0.9, max_dot);
+   float selection = step(0.81, max_dot);
 
    float lerp_occlusion = texture(ssao_tex, in_uv).x;
    float best_depth_occlusion = nearest_depth_occlusion(ssao_tex, depth_tex, low_depth_tex, in_uv);

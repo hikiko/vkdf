@@ -1793,17 +1793,6 @@ init_pipeline_descriptors(SceneResources *res,
                              VK_SAMPLER_MIPMAP_MODE_NEAREST,
                              0.0f);
 
-      res->depth_low_sampler =
-         vkdf_create_depth_sampler(res->ctx,
-                                   VK_FILTER_NEAREST);
-
-      res->normal_low_sampler =
-         vkdf_create_sampler(res->ctx,
-                             VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
-                             VK_FILTER_NEAREST,
-                             VK_SAMPLER_MIPMAP_MODE_NEAREST,
-                             0.0f);
-
       /* Binding 0: depth buffer */
       uint32_t binding_idx = 0;
       vkdf_descriptor_set_sampler_update(res->ctx,
@@ -1829,6 +1818,16 @@ init_pipeline_descriptors(SceneResources *res,
          VkdfImage *ssao_image = vkdf_scene_get_ssao_image(res->scene);
          res->ssao_sampler =
             vkdf_ssao_create_ssao_sampler(res->ctx, SSAO_FILTER);
+
+		 res->depth_low_sampler =
+			 vkdf_create_depth_sampler(res->ctx, VK_FILTER_NEAREST);
+
+		 res->normal_low_sampler =
+			 vkdf_create_sampler(res->ctx,
+								 VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_FILTER_NEAREST,
+								 VK_SAMPLER_MIPMAP_MODE_NEAREST,
+								 0.0f);
+
          vkdf_descriptor_set_sampler_update(res->ctx,
                                             res->pipelines.descr.gbuffer_tex_set,
                                             res->ssao_sampler,
@@ -1838,19 +1837,19 @@ init_pipeline_descriptors(SceneResources *res,
 
          /* Binding N: low res depth buffer */
          vkdf_descriptor_set_sampler_update(res->ctx,
-               res->pipelines.descr.gbuffer_tex_set,
-               res->depth_low_sampler,
-               res->scene->ssao.depth_resize.image.view,
-               VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL,
-               binding_idx++, 1);
+										    res->pipelines.descr.gbuffer_tex_set,
+											res->depth_low_sampler,
+											res->scene->ssao.depth_resize.image.view,
+											VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL,
+											binding_idx++, 1);
 
          /* Binding N+1: low res normals texture */
          vkdf_descriptor_set_sampler_update(res->ctx,
-               res->pipelines.descr.gbuffer_tex_set,
-               res->normal_low_sampler,
-               res->scene->ssao.depth_resize.color_image.view,
-               VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-               binding_idx++, 1);
+										    res->pipelines.descr.gbuffer_tex_set,
+											res->normal_low_sampler,
+											res->scene->ssao.depth_resize.color_image.view,
+											VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+											binding_idx++, 1);
       }
 
       assert(num_bindings == binding_idx);
@@ -2790,6 +2789,7 @@ destroy_samplers(SceneResources *res)
    vkDestroySampler(res->ctx->device, res->gbuffer_sampler, NULL);
    vkDestroySampler(res->ctx->device, res->ssao_sampler, NULL);
    vkDestroySampler(res->ctx->device, res->depth_low_sampler, NULL);
+   vkDestroySampler(res->ctx->device, res->normal_low_sampler, NULL);
 }
 
 void

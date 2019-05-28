@@ -21,6 +21,7 @@ vkdf_create_gfx_pipeline(VkdfContext *ctx,
 
    // Vertex input
    VkPipelineVertexInputStateCreateInfo vi;
+   memset(&vi, 0, sizeof vi);
    vi.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
    vi.pNext = NULL;
    vi.flags = 0;
@@ -31,6 +32,7 @@ vkdf_create_gfx_pipeline(VkdfContext *ctx,
 
    // Input assembly
    VkPipelineInputAssemblyStateCreateInfo ia;
+   memset(&ia, 0, sizeof ia);
    ia.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
    ia.pNext = NULL;
    ia.flags = 0;
@@ -49,6 +51,7 @@ vkdf_create_gfx_pipeline(VkdfContext *ctx,
 
    // Rasterization
    VkPipelineRasterizationStateCreateInfo rs;
+   memset(&rs, 0, sizeof rs);
    rs.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
    rs.pNext = NULL;
    rs.flags = 0;
@@ -65,6 +68,7 @@ vkdf_create_gfx_pipeline(VkdfContext *ctx,
 
    // Multisampling
    VkPipelineMultisampleStateCreateInfo ms;
+   memset(&ms, 0, sizeof ms);
    ms.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
    ms.pNext = NULL;
    ms.flags = 0;
@@ -77,6 +81,7 @@ vkdf_create_gfx_pipeline(VkdfContext *ctx,
 
    // Depth / Stencil
    VkPipelineDepthStencilStateCreateInfo ds;
+   memset(&ds, 0, sizeof ds);
    ds.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
    ds.pNext = NULL;
    ds.flags = 0;
@@ -110,6 +115,7 @@ vkdf_create_gfx_pipeline(VkdfContext *ctx,
    }
 
    VkPipelineColorBlendStateCreateInfo cb;
+   memset(&cb, 0, sizeof cb);
    cb.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
    cb.flags = 0;
    cb.pNext = NULL;
@@ -132,6 +138,7 @@ vkdf_create_gfx_pipeline(VkdfContext *ctx,
       VK_DYNAMIC_STATE_VIEWPORT;
 
    VkPipelineDynamicStateCreateInfo dynamic_state_info;
+   memset(&dynamic_state_info, 0, sizeof dynamic_state_info);
    dynamic_state_info.sType =
       VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
    dynamic_state_info.pNext = NULL;
@@ -147,6 +154,7 @@ vkdf_create_gfx_pipeline(VkdfContext *ctx,
 
    // Create pipeline
    VkGraphicsPipelineCreateInfo pipeline_info;
+   memset(&pipeline_info, 0, sizeof pipeline_info);
    pipeline_info.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
    pipeline_info.pNext = NULL;
    pipeline_info.layout = pipeline_layout;
