@@ -4781,6 +4781,7 @@ prepare_ssao_rendering(VkdfScene *s)
    /* depth resize desc set (sampler) */
 
    s->ssao.depth_resize.depth_sampler = vkdf_ssao_create_depth_resize_sampler(s->ctx);
+   s->ssao.depth_resize.normal_sampler = vkdf_ssao_create_ssao_sampler(s->ctx, VK_FILTER_NEAREST);
 
    s->ssao.depth_resize.pipeline.depth_set =
       create_descriptor_set(s->ctx,
