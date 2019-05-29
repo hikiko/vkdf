@@ -6,7 +6,7 @@
 
 const float      WIN_WIDTH                 = 1920.0f;
 const float      WIN_HEIGHT                = 1080.0f;
-const bool       WIN_FULLSCREEN            = true;
+const bool       WIN_FULLSCREEN            = false;
 
 /* Framerate target */
 const float      FRAMERATE_TARGET          = 60.0f;
@@ -64,7 +64,7 @@ const glm::vec4  SUN_SPECULAR              = glm::vec4(3.0f, 3.0f, 3.0f, 1.0f);
 const glm::vec4  SUN_AMBIENT               = glm::vec4(0.1f, 0.1f, 0.1f, 1.0f);
 
 /* Screen Space Reflections (SSR) */
-const bool       ENABLE_SSR                = true;
+const bool       ENABLE_SSR                = false;
 const float      SSR_REFLECTION_STRENGTH   = 0.1f;  // Min > 0.0, Max=1.0
 const int        SSR_REFLECTION_ROUGHNESS  = 0;     // Min = 0
 const int32_t    SSR_MAX_SAMPLES           = 32;
