@@ -7,16 +7,12 @@ float checkerboard(in vec2 uv)
    return mod(pos.x + mod(pos.y, 2.0), 2.0);
 }
 
-layout(location = 0) in vec4 in_position;
-layout(location = 1) in vec2 in_uv;
-
+layout(location = 0) in vec2 in_uv;
 layout(set = 0, binding = 0) uniform sampler2D tex_depth;
 layout (depth_any) out float gl_FragDepth;
 
 void main()
 {
-   int min_or_max = int(checkerboard(in_uv));
-
    float d1 = textureOffset(tex_depth, in_uv, ivec2(0, 0)).x;
    float d2 = textureOffset(tex_depth, in_uv, ivec2(0, 1)).x;
    float d3 = textureOffset(tex_depth, in_uv, ivec2(1, 1)).x;
@@ -27,8 +23,7 @@ void main()
     * the min or the max depth in the downsampling
     */
 
-   if (min_or_max == 1)
-      gl_FragDepth = max(max(d1, d2), max(d3, d4));
-   else
-      gl_FragDepth = min(min(d1, d2), min(d3, d4));
+   gl_FragDepth = mix(max(max(d1, d2), max(d3, d4)),
+                      min(min(d1, d2), min(d3, d4)),
+                      checkerboard(in_uv));
 }
