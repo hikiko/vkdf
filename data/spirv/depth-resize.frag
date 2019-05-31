@@ -11,6 +11,21 @@ void downsample(in sampler2D tex_depth, in sampler2D tex_normal,
                 in vec2 in_uv,
                 out float depth, out vec3 normal)
 {
+   /* 4 normals */
+   vec3 n0 = textureOffset(tex_normal, in_uv, ivec2(0, 0)).xyz;
+   vec3 n1 = textureOffset(tex_normal, in_uv, ivec2(0, 1)).xyz;
+   vec3 n2 = textureOffset(tex_normal, in_uv, ivec2(1, 0)).xyz;
+   vec3 n3 = textureOffset(tex_normal, in_uv, ivec2(1, 1)).xyz;
+
+  /* we need to find the minimum dot product */
+   float dot0 = dot(n0, n1);
+   float dot1 = dot(n0, n2);
+   float dot2 = dot(n0, n3);
+
+   float min_dot = min(dot0, min(dot1, dot2));
+   float selection = step(0.992, min_dot);
+
+   /* 4 depths */
    float d1 = textureOffset(tex_depth, in_uv, ivec2(0, 0)).x;
    float d2 = textureOffset(tex_depth, in_uv, ivec2(0, 1)).x;
    float d3 = textureOffset(tex_depth, in_uv, ivec2(1, 1)).x;
@@ -23,7 +38,8 @@ void downsample(in sampler2D tex_depth, in sampler2D tex_normal,
 
    depth = mix(max(max(d1, d2), max(d3, d4)),
                min(min(d1, d2), min(d3, d4)),
-               checkerboard(in_uv));
+               //checkerboard(in_uv));
+               selection);
 
    //depth = max(max(d1, d2), max(d3, d4));
 
