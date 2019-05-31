@@ -4693,7 +4693,7 @@ prepare_ssao_rendering(VkdfScene *s)
                         s->ssao.height,
                         1,
                         VK_IMAGE_TYPE_2D,
-                        VK_FORMAT_R8G8B8A8_UNORM,
+                        VK_FORMAT_R16G16B16A16_SFLOAT,
                         VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT |
                         VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT,
                         VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT |

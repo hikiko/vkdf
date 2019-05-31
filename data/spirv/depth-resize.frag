@@ -11,8 +11,6 @@ void downsample(in sampler2D tex_depth, in sampler2D tex_normal,
                 in vec2 in_uv,
                 out float depth, out vec3 normal)
 {
-   int cb = int(checkerboard(in_uv));
-
    float d1 = textureOffset(tex_depth, in_uv, ivec2(0, 0)).x;
    float d2 = textureOffset(tex_depth, in_uv, ivec2(0, 1)).x;
    float d3 = textureOffset(tex_depth, in_uv, ivec2(1, 1)).x;
@@ -23,10 +21,11 @@ void downsample(in sampler2D tex_depth, in sampler2D tex_normal,
     * the min or the max depth in the downsampling
     */
 
-   if (cb == 1)
-      depth = max(max(d1, d2), max(d3, d4));
-   else
-      depth = min(min(d1, d2), min(d3, d4));
+   depth = mix(max(max(d1, d2), max(d3, d4)),
+               min(min(d1, d2), min(d3, d4)),
+               checkerboard(in_uv));
+
+   //depth = max(max(d1, d2), max(d3, d4));
 
    /* then we select the normal of the sample with the selected depth */
    if (depth == d1)
@@ -39,8 +38,7 @@ void downsample(in sampler2D tex_depth, in sampler2D tex_normal,
       normal = textureOffset(tex_normal, in_uv, ivec2(1, 1)).xyz;
 }
 
-layout(location = 0) in vec4 in_position;
-layout(location = 1) in vec2 in_uv;
+layout(location = 0) in vec2 in_uv;
 
 layout(set = 0, binding = 0) uniform sampler2D tex_depth;
 layout(set = 0, binding = 1) uniform sampler2D tex_normal;

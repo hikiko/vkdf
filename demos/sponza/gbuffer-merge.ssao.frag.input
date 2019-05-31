@@ -55,20 +55,20 @@ float select_ambient_occlusion(in sampler2D ssao_tex,
    vec3 n2 = textureOffset(low_normal_tex, in_uv, ivec2(1, 0)).xyz;
    vec3 n3 = textureOffset(low_normal_tex, in_uv, ivec2(1, 1)).xyz;
 
-   /* we need to find the maximum dot product */
-   float d0 = abs(dot(n0, n1));
-   float d1 = abs(dot(n0, n2));
-   float d2 = abs(dot(n0, n3));
+   /* we need to find the minimum dot product */
+   float d0 = dot(n0, n1);
+   float d1 = dot(n0, n2);
+   float d2 = dot(n0, n3);
 
    float min_dot = min(d0, min(d1, d2));
-   float selection = step(0.995, min_dot);
+   float selection = step(0.992, min_dot);
 
    float lerp_occlusion = texture(ssao_tex, in_uv).x;
    float best_depth_occlusion = nearest_depth_occlusion(ssao_tex, depth_tex, low_depth_tex, in_uv);
-   return mix(best_depth_occlusion, lerp_occlusion, selection);
-   //return lerp_occlusion;
+   //return mix(best_depth_occlusion, lerp_occlusion, selection);
+   return selection;
    //return best_depth_occlusion;
-   //return selection;
+   //return lerp_occlusion;
 }
 
 layout(push_constant) uniform pcb {
@@ -122,13 +122,18 @@ layout(location = 0) out vec4 out_color;
 void main()
 {
    //int pixel_offs = select_offset(tex_depth, tex_depth_lowres, in_uv);
+   vec3 color;
    float ambient_occlusion = select_ambient_occlusion(tex_ssao,
                                                       tex_depth,
-                                                      tex_depth_lowres,
                                                       tex_normal_lowres,
+                                                      tex_depth_lowres,
                                                       in_uv);
 
 
    INCLUDE(compute_deferred_lighting.glsl)
-   out_color = vec4(0.0, 0.0, ambient_occlusion, 1.0);
+/*   vec3 n0 = textureOffset(tex_normal_lowres, in_uv, ivec2(0, 0)).xyz;
+   n0 = texture(tex_eye_normal, in_uv).xyz;
+   out_color = vec4(n0 * 0.5 + 0.5, 1.0);*/
+   //out_color = vec4(color, 1.0);
+   out_color = vec4(ambient_occlusion, ambient_occlusion, ambient_occlusion, 1.0);
 }
