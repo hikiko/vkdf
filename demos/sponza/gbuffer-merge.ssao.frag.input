@@ -43,32 +43,66 @@ float nearest_depth_occlusion(in sampler2D ssao_tex,
       return textureOffset(ssao_tex, in_uv, ivec2(1, 1)).x;
 }
 
+float similarity(in float d1, in float d2, float scale)
+{
+   return clamp(1 - abs(d1 - d2) * scale, 0.0, 1.0).x;
+}
+
+const float cf16f_scale = 4096.0f * 32.0f;
 float select_ambient_occlusion(in sampler2D ssao_tex,
                                in sampler2D depth_tex,
-                               in sampler2D low_normal_tex,
                                in sampler2D low_depth_tex,
-                               in vec2 in_uv)
+                               in sampler2D eye_normal_tex,
+                               in sampler2D low_normal_tex,
+                               in vec2 in_uv,
+                               out vec4 color)
 {
-   /* taking the normals of the neighborhood */
-   vec3 n0 = textureOffset(low_normal_tex, in_uv, ivec2(0, 0)).xyz;
-   vec3 n1 = textureOffset(low_normal_tex, in_uv, ivec2(0, 1)).xyz;
-   vec3 n2 = textureOffset(low_normal_tex, in_uv, ivec2(1, 0)).xyz;
-   vec3 n3 = textureOffset(low_normal_tex, in_uv, ivec2(1, 1)).xyz;
+   vec3 eye_normal = texture(eye_normal_tex, in_uv).xyz;
+   float depth = texture(depth_tex, in_uv).x;
 
-   /* we need to find the minimum dot product */
-   float d0 = dot(n0, n1);
-   float d1 = dot(n0, n2);
-   float d2 = dot(n0, n3);
+   float depths[] = float[] (
+         textureOffset(depth_tex, in_uv, ivec2(0, 0)).x,
+         textureOffset(depth_tex, in_uv, ivec2(0, 1)).x,
+         textureOffset(depth_tex, in_uv, ivec2(1, 1)).x,
+         textureOffset(depth_tex, in_uv, ivec2(1, 0)).x);
 
-   float min_dot = min(d0, min(d1, d2));
-   float selection = step(0.992, min_dot);
+   vec3 normals[] = vec3[] (
+         textureOffset(low_normal_tex, in_uv, ivec2(0, 0)).xyz,
+         textureOffset(low_normal_tex, in_uv, ivec2(0, 1)).xyz,
+         textureOffset(low_normal_tex, in_uv, ivec2(1, 1)).xyz,
+         textureOffset(low_normal_tex, in_uv, ivec2(1, 0)).xyz);
 
-   float lerp_occlusion = texture(ssao_tex, in_uv).x;
-   float best_depth_occlusion = nearest_depth_occlusion(ssao_tex, depth_tex, low_depth_tex, in_uv);
-   //return mix(best_depth_occlusion, lerp_occlusion, selection);
-   return selection;
-   //return best_depth_occlusion;
-   //return lerp_occlusion;
+   vec3 samples[] = vec3[] (
+         textureOffset(ssao_tex, in_uv, ivec2(0, 0)).xyz,
+         textureOffset(ssao_tex, in_uv, ivec2(0, 1)).xyz,
+         textureOffset(ssao_tex, in_uv, ivec2(1, 1)).xyz,
+         textureOffset(ssao_tex, in_uv, ivec2(1, 0)).xyz);
+
+   float ndotn;
+   float weight;
+   float weight_sum;
+   vec3 min_iter = vec3(1.0, 1.0, 1.0);
+
+   for(int i = 0; i < 4; i++) {
+      weight = similarity(depths[i] * cf16f_scale, depth, 0.003f);
+      ndotn = dot(eye_normal, normals[i]);
+
+      min_iter.r = min(samples[i].r, min_iter.r);
+      min_iter.g = min(samples[i].g, min_iter.g);
+      min_iter.b = min(samples[i].b, min_iter.b);
+
+      weight *= clamp(ndotn, 0.0, 1.0);
+
+      color += (samples[i], 1.0) * weight;
+      weight_sum += weight;
+   }
+
+   color /= weight_sum;
+   color.r = min_iter.r;
+   color.g = min_iter.g;
+   color.b = min_iter.b;
+
+   return mix(texture(ssao_tex, in_uv).r, color.r, 0.6);
 }
 
 layout(push_constant) uniform pcb {
@@ -122,18 +156,21 @@ layout(location = 0) out vec4 out_color;
 void main()
 {
    //int pixel_offs = select_offset(tex_depth, tex_depth_lowres, in_uv);
-   vec3 color;
+   vec4 color;
    float ambient_occlusion = select_ambient_occlusion(tex_ssao,
                                                       tex_depth,
-                                                      tex_normal_lowres,
                                                       tex_depth_lowres,
-                                                      in_uv);
+                                                      tex_eye_normal,
+                                                      tex_normal_lowres,
+                                                      in_uv,
+                                                      color);
 
 
    INCLUDE(compute_deferred_lighting.glsl)
-/*   vec3 n0 = textureOffset(tex_normal_lowres, in_uv, ivec2(0, 0)).xyz;
-   n0 = texture(tex_eye_normal, in_uv).xyz;
-   out_color = vec4(n0 * 0.5 + 0.5, 1.0);*/
+   //out_color = color;
+  //vec3 n0 = textureOffset(tex_normal_lowres, in_uv, ivec2(0, 0)).xyz;
+   //n0 = texture(tex_eye_normal, in_uv).xyz;
+   //out_color = vec4(n0 * 0.5 + 0.5, 1.0);
    //out_color = vec4(color, 1.0);
    out_color = vec4(ambient_occlusion, ambient_occlusion, ambient_occlusion, 1.0);
 }
