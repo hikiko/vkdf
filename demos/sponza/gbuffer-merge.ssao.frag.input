@@ -121,20 +121,20 @@ float select_ambient_occlusion(in sampler2D ssao_tex,
          textureOffset(low_normal_tex, in_uv, ivec2(0, 1)).xyz,
          textureOffset(low_normal_tex, in_uv, ivec2(1, 1)).xyz,
          textureOffset(low_normal_tex, in_uv, ivec2(1, 0)).xyz);
-/*
    float d0 = dot(eye_normal, normals[0]);
    float d1 = dot(eye_normal, normals[1]);
    float d2 = dot(eye_normal, normals[2]);
    float d3 = dot(eye_normal, normals[3]);
 
    float min_dot = min(min(d0, d1), min(d2, d3));
-*/
+   /*
    //float d0 = dot(normals[0], normals[0]);
    float d1 = dot(normals[0], normals[1]);
    float d2 = dot(normals[0], normals[2]);
    float d3 = dot(normals[0], normals[3]);
 
    float min_dot = min(d1, min(d2, d3));
+   */
    float bd_ao = nearest_depth_occlusion(ssao_tex, depth_tex, low_depth_tex, in_uv);
    float wa_ao = calc_ambient_occlusion(ssao_tex,
                                         depth_tex,
