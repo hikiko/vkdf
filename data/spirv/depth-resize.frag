@@ -4,11 +4,6 @@
 #define TWEAK 0.99
 #define SSAO_DOWNSCALE 2.0;
 
-//FIXME: this is from UE4, not sure yet if needed.
-// needed to prevent AO seam near 16 bit float maximum, this 
-//factor pushed the problem far out and it seems to not have
-//a visual degradion nearby
-const float cf16f_scale = 4096.0f * 32.0f;
 float T = 1.0 / SSAO_DOWNSCALE;
 
 //TODO test this too not only max
