@@ -40,4 +40,20 @@ vkdf_renderpass_begin_new(VkRenderPass renderpass,
    return rp_begin;
 }
 
+void
+vkdf_create_color_attachment(VkFormat color_format,
+                             VkAttachmentLoadOp color_load,
+                             VkAttachmentStoreOp color_store,
+                             VkImageLayout color_initial_layout,
+                             VkImageLayout color_final_layout,
+                             int idx,
+                             VkAttachmentDescription *att_desc,
+                             VkAttachmentReference *att_ref);
+
+VkRenderPass
+vkdf_renderpass_colors_new(VkdfContext *ctx,
+                           int num_atts,
+                           VkAttachmentDescription *att_descs,
+                           VkAttachmentReference *att_refs);
+
 #endif

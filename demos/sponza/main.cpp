@@ -275,7 +275,7 @@ typedef struct {
    VkSampler sponza_opacity_sampler;
    VkSampler gbuffer_sampler;
    VkSampler ssao_sampler;
-   VkSampler depth_low_sampler;
+   VkSampler normal_depth_low_sampler;
    VkSampler normal_low_sampler;
 
    VkdfLight *light;
@@ -1803,25 +1803,25 @@ init_pipeline_descriptors(SceneResources *res,
 		  res->pipelines.descr.resize_tex_set =
 			  vkdf_descriptor_set_create(res->ctx, res->descriptor_pool.sampler_pool,
 					  					 res->pipelines.descr.resize_tex_layout);
-		 res->depth_low_sampler =
+		 res->normal_depth_low_sampler =
 			 vkdf_create_depth_sampler(res->ctx, VK_FILTER_NEAREST);
 
 		 res->normal_low_sampler =
 			 vkdf_create_depth_sampler(res->ctx, VK_FILTER_NEAREST);
 
          vkdf_descriptor_set_sampler_update(res->ctx,
-										    res->pipelines.descr.resize_tex_set,
-											res->depth_low_sampler,
-											res->scene->ssao.depth_resize.image.view,
-											VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL,
-											0, 1);
+                                            res->pipelines.descr.resize_tex_set,
+                                            res->normal_depth_low_sampler,
+                                            res->scene->ssao.depth_resize.images[0].view,
+                                            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                                            0, 1);
 
          vkdf_descriptor_set_sampler_update(res->ctx,
-										    res->pipelines.descr.resize_tex_set,
-											res->normal_low_sampler,
-											res->scene->ssao.depth_resize.color_image.view,
-											VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-											1, 1);
+                                            res->pipelines.descr.resize_tex_set,
+                                            res->normal_low_sampler,
+                                            res->scene->ssao.depth_resize.images[1].view,
+                                            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                                            1, 1);
 
 	  }
 
@@ -2565,7 +2565,7 @@ static void
 init_debug_tile_resources(SceneResources *res)
 {
    //res->debug.image = res->scene->rt.gbuffer[0];
-   res->debug.image = res->scene->ssao.depth_resize.color_image;
+   res->debug.image = res->scene->ssao.depth_resize.images[1];
 
    VkdfImage *color_image = vkdf_scene_get_color_render_target(res->scene);
 
@@ -2801,7 +2801,7 @@ destroy_samplers(SceneResources *res)
    vkDestroySampler(res->ctx->device, res->sponza_opacity_sampler, NULL);
    vkDestroySampler(res->ctx->device, res->gbuffer_sampler, NULL);
    vkDestroySampler(res->ctx->device, res->ssao_sampler, NULL);
-   vkDestroySampler(res->ctx->device, res->depth_low_sampler, NULL);
+   vkDestroySampler(res->ctx->device, res->normal_depth_low_sampler, NULL);
    vkDestroySampler(res->ctx->device, res->normal_low_sampler, NULL);
 }
 

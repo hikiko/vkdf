@@ -20,7 +20,9 @@ float similarity(in float d1, in float d2, float scale)
 
 void downsample(in sampler2D tex_depth, in sampler2D tex_normal,
                 in vec2 in_uv,
-                out float max_depth, out vec3 avg_normal)
+                out float max_depth,
+                out vec3 avg_normal,
+                out vec3 normal)
 {
    float depths[] = float[] (
       textureOffset(tex_depth, in_uv, ivec2(0, 0)).x,
@@ -39,6 +41,8 @@ void downsample(in sampler2D tex_depth, in sampler2D tex_normal,
    avg_normal = vec3(0.0001f, 0.0001f, 0.0001f);
    for (int i = 0; i < 4; i++) {
       avg_normal += normals[i] * similarity(depths[i], max_depth, T);
+      if (max_depth == depths[i])
+         normal = normals[i];
    }
 }
 
@@ -46,14 +50,15 @@ layout(location = 0) in vec2 in_uv;
 
 layout(set = 0, binding = 0) uniform sampler2D tex_depth;
 layout(set = 0, binding = 1) uniform sampler2D tex_normal;
-layout (location = 0) out vec4 out_color; 
+layout (location = 0) out vec4 out_depth_normal; 
+layout (location = 1) out vec4 out_avg_normal;
 
 void main()
 {
    float depth;
-   vec3 normal;
-   downsample(tex_depth, tex_normal, in_uv, depth, normal);
+   vec3 avg_normal, normal;
+   downsample(tex_depth, tex_normal, in_uv, depth, avg_normal, normal);
 
-   gl_FragDepth = depth;
-   out_color = vec4(normal, 1.0);
+   out_depth_normal = vec4(normal, depth);
+   out_avg_normal = vec4(avg_normal, 1.0);
 }

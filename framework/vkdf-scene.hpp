@@ -379,8 +379,10 @@ struct _VkdfScene {
             } shader;
          } pipeline;
 
-         VkdfImage image; // resized depth render target
-         VkdfImage color_image; // resized normal render target
+         /* color attachments for depths-normals, average normals
+          * in that order
+          */
+         VkdfImage images[2];
 
          struct {
             VkRenderPass renderpass;

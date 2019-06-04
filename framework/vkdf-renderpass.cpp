@@ -88,3 +88,62 @@ vkdf_renderpass_simple_new(VkdfContext *ctx,
 
    return render_pass;
 }
+
+void
+vkdf_create_color_attachment(VkFormat color_format,
+                             VkAttachmentLoadOp color_load,
+                             VkAttachmentStoreOp color_store,
+                             VkImageLayout color_initial_layout,
+                             VkImageLayout color_final_layout,
+                             int idx,
+                             VkAttachmentDescription *att_desc,
+                             VkAttachmentReference *att_ref)
+{
+   att_desc->format = color_format;
+   att_desc->samples = VK_SAMPLE_COUNT_1_BIT;
+   att_desc->loadOp = color_load;
+   att_desc->storeOp = color_store;
+   att_desc->stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+   att_desc->stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+   att_desc->initialLayout = color_initial_layout;
+   att_desc->finalLayout = color_final_layout;
+
+   att_ref->attachment = idx;
+   att_ref->layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+}
+
+
+VkRenderPass
+vkdf_renderpass_colors_new(VkdfContext *ctx,
+                           int num_atts,
+                           VkAttachmentDescription *att_descs,
+                           VkAttachmentReference *att_refs)
+{
+   VkSubpassDescription subpass[1];
+   subpass[0].pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+   subpass[0].flags = 0;
+   subpass[0].inputAttachmentCount = 0;
+   subpass[0].pInputAttachments = NULL;
+   subpass[0].colorAttachmentCount = num_atts;
+   subpass[0].pColorAttachments = att_refs;
+   subpass[0].pResolveAttachments = NULL;
+   subpass[0].pDepthStencilAttachment = NULL;
+   subpass[0].preserveAttachmentCount = 0;
+   subpass[0].pPreserveAttachments = NULL;
+
+   VkRenderPassCreateInfo rp_info;
+   rp_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+   rp_info.pNext = NULL;
+   rp_info.attachmentCount = num_atts;
+   rp_info.pAttachments = att_descs;
+   rp_info.subpassCount = 1;
+   rp_info.pSubpasses = subpass;
+   rp_info.dependencyCount = 0;
+   rp_info.pDependencies = NULL;
+   rp_info.flags = 0;
+
+   VkRenderPass render_pass;
+   VK_CHECK(vkCreateRenderPass(ctx->device, &rp_info, NULL, &render_pass));
+
+   return render_pass;
+}

@@ -741,8 +741,8 @@ destroy_ssao_resources(VkdfScene *s)
    vkDestroySampler(s->ctx->device, s->ssao.depth_resize.normal_sampler, NULL);
    vkDestroyRenderPass(s->ctx->device, s->ssao.depth_resize.rp.renderpass, NULL);
    vkDestroyFramebuffer(s->ctx->device, s->ssao.depth_resize.rp.framebuffer, NULL);
-   vkdf_destroy_image(s->ctx, &s->ssao.depth_resize.image);
-   vkdf_destroy_image(s->ctx, &s->ssao.depth_resize.color_image);
+   vkdf_destroy_image(s->ctx, &s->ssao.depth_resize.images[0]);
+   vkdf_destroy_image(s->ctx, &s->ssao.depth_resize.images[1]);
 }
 
 static void
@@ -4668,55 +4668,42 @@ prepare_ssao_rendering(VkdfScene *s)
                                          1, 1);
    }
 
-   /* depth resize */
-   s->ssao.depth_resize.image =
-      vkdf_create_image(s->ctx,
-                        s->ssao.width,
-                        s->ssao.height,
-                        1,
-                        VK_IMAGE_TYPE_2D,
-                        VK_FORMAT_D32_SFLOAT,
-                        VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT |
-                        VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT,
-                        VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT |
-                        VK_IMAGE_USAGE_SAMPLED_BIT |
-                        VK_IMAGE_USAGE_TRANSFER_SRC_BIT |
-                        VK_IMAGE_USAGE_TRANSFER_DST_BIT,
-                        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-                        VK_IMAGE_ASPECT_DEPTH_BIT,
-                        VK_IMAGE_VIEW_TYPE_2D);
-
-   /*depth resize normals render target output */
-   s->ssao.depth_resize.color_image =
-      vkdf_create_image(s->ctx,
-                        s->ssao.width,
-                        s->ssao.height,
-                        1,
-                        VK_IMAGE_TYPE_2D,
-                        VK_FORMAT_R16G16B16A16_SFLOAT,
-                        VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT |
-                        VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT,
-                        VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT |
-                        VK_IMAGE_USAGE_TRANSFER_SRC_BIT |
-                        VK_IMAGE_USAGE_TRANSFER_DST_BIT |
-                        VK_IMAGE_USAGE_SAMPLED_BIT,
-                        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-                        VK_IMAGE_ASPECT_COLOR_BIT,
-                        VK_IMAGE_VIEW_TYPE_2D);
-
    /* depth resize render pass */
+   VkAttachmentDescription att_descs[2];
+   memset(&att_descs, 0, sizeof att_descs[0] * 2);
+   VkAttachmentReference att_refs[2];
+   memset(&att_refs, 0, sizeof att_descs[0] * 2);
+
+   for (int i = 0; i < 2; i++) {
+      s->ssao.depth_resize.images[i] =
+         vkdf_create_image(s->ctx,
+                           s->ssao.width,
+                           s->ssao.height,
+                           1,
+                           VK_IMAGE_TYPE_2D,
+                           VK_FORMAT_R16G16B16A16_SFLOAT,
+                           VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT |
+                           VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT,
+                           VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT |
+                           VK_IMAGE_USAGE_TRANSFER_SRC_BIT |
+                           VK_IMAGE_USAGE_TRANSFER_DST_BIT |
+                           VK_IMAGE_USAGE_SAMPLED_BIT,
+                           VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                           VK_IMAGE_ASPECT_COLOR_BIT,
+                           VK_IMAGE_VIEW_TYPE_2D);
+
+      vkdf_create_color_attachment(s->ssao.depth_resize.images[i].format,
+                                   VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+                                   VK_ATTACHMENT_STORE_OP_STORE,
+                                   VK_IMAGE_LAYOUT_UNDEFINED,
+                                   VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                                   i,
+                                   &att_descs[i],
+                                   &att_refs[i]);
+   }
    s->ssao.depth_resize.rp.renderpass =
-      vkdf_renderpass_simple_new(s->ctx,
-                                 s->ssao.depth_resize.color_image.format,
-                                 VK_ATTACHMENT_LOAD_OP_DONT_CARE,
-                                 VK_ATTACHMENT_STORE_OP_STORE,
-                                 VK_IMAGE_LAYOUT_UNDEFINED,
-                                 VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-                                 s->ssao.depth_resize.image.format,
-                                 VK_ATTACHMENT_LOAD_OP_DONT_CARE,
-                                 VK_ATTACHMENT_STORE_OP_STORE,
-                                 VK_IMAGE_LAYOUT_UNDEFINED,
-                                 VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+      vkdf_renderpass_colors_new(s->ctx, 2, att_descs, att_refs);
+
 
    /* depth resize framebuffer */
 #if 0
@@ -4728,11 +4715,12 @@ prepare_ssao_rendering(VkdfScene *s)
                                s->ssao.depth_resize.image.view);
 #endif
 
+   //FIXME
    s->ssao.depth_resize.rp.framebuffer = vkdf_create_framebuffer(s->ctx,
          s->ssao.depth_resize.rp.renderpass,
-         s->ssao.depth_resize.color_image.view,
+         s->ssao.depth_resize.images[0].view,
          s->ssao.width, s->ssao.height,
-         1, &s->ssao.depth_resize.image);
+         1, &s->ssao.depth_resize.images[1]);
 
    /* depth resize desc set layout */
    s->ssao.depth_resize.pipeline.depth_set_layout =
@@ -4777,7 +4765,7 @@ prepare_ssao_rendering(VkdfScene *s)
                                s->ssao.depth_resize.pipeline.layout,
                                VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP,
                                VK_CULL_MODE_BACK_BIT,
-                               1,
+                               2,
                                &dr_vs_info, &dr_fs_info);
 
    /* depth resize desc set (sampler) */

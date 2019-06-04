@@ -16,7 +16,7 @@ float nearest_depth_occlusion(in sampler2D ssao_tex,
     * use a loop for the following steps, unfortunately.
     */
 
-   float d0 = texture(depth_tex, in_uv).x;
+   float d0 = texture(depth_tex, in_uv).a;
 
    /* calculating the distances between the depths of the pixels
     * in the lowres neighborhood and the full res depth value
@@ -24,24 +24,24 @@ float nearest_depth_occlusion(in sampler2D ssao_tex,
     * can't use a loop)
     */
 
-   float d1 = abs(d0 - textureOffset(depth_low_tex, in_uv, ivec2(0, 0)).x);
-   float d2 = abs(d0 - textureOffset(depth_low_tex, in_uv, ivec2(0, 1)).x);
-   float d3 = abs(d0 - textureOffset(depth_low_tex, in_uv, ivec2(1, 0)).x);
-   float d4 = abs(d0 - textureOffset(depth_low_tex, in_uv, ivec2(1, 1)).x);
+   float d1 = abs(d0 - textureOffset(depth_low_tex, in_uv, ivec2(0, 0)).a);
+   float d2 = abs(d0 - textureOffset(depth_low_tex, in_uv, ivec2(0, 1)).a);
+   float d3 = abs(d0 - textureOffset(depth_low_tex, in_uv, ivec2(1, 0)).a);
+   float d4 = abs(d0 - textureOffset(depth_low_tex, in_uv, ivec2(1, 1)).a);
 
    float dmin = min(min(d1, d2), min(d3, d4));
 
    if (dmin == d1)
-      return textureOffset(ssao_tex, in_uv, ivec2(0, 0)).x;
+      return textureOffset(ssao_tex, in_uv, ivec2(0, 0)).a;
 
    if (dmin == d2)
-      return textureOffset(ssao_tex, in_uv, ivec2(0, 1)).x;
+      return textureOffset(ssao_tex, in_uv, ivec2(0, 1)).a;
 
    if (dmin == d3)
-      return textureOffset(ssao_tex, in_uv, ivec2(1, 0)).x;
+      return textureOffset(ssao_tex, in_uv, ivec2(1, 0)).a;
 
    if (dmin == d4)
-      return textureOffset(ssao_tex, in_uv, ivec2(1, 1)).x;
+      return textureOffset(ssao_tex, in_uv, ivec2(1, 1)).a;
 }
 
 float similarity(in float d1, in float d2, float scale)
@@ -52,7 +52,7 @@ float similarity(in float d1, in float d2, float scale)
 const float cf16f_scale = 4096.0f * 32.0f;
 float calc_ambient_occlusion(in sampler2D ssao_tex,
                              in sampler2D depth_tex,
-                             in sampler2D low_depth_tex,
+                             in sampler2D low_normal_depth_tex,
                              in sampler2D eye_normal_tex,
                              in sampler2D low_normal_tex,
                              in vec2 in_uv,
@@ -62,12 +62,12 @@ float calc_ambient_occlusion(in sampler2D ssao_tex,
    float depth = texture(depth_tex, in_uv).x;
 
    float depths[] = float[] (
-         textureOffset(depth_tex, in_uv, ivec2(0, 0)).x,
-         textureOffset(depth_tex, in_uv, ivec2(0, 1)).x,
-         textureOffset(depth_tex, in_uv, ivec2(1, 1)).x,
-         textureOffset(depth_tex, in_uv, ivec2(1, 0)).x);
+         textureOffset(low_normal_depth_tex, in_uv, ivec2(0, 0)).a,
+         textureOffset(low_normal_depth_tex, in_uv, ivec2(0, 1)).a,
+         textureOffset(low_normal_depth_tex, in_uv, ivec2(1, 1)).a,
+         textureOffset(low_normal_depth_tex, in_uv, ivec2(1, 0)).a);
 
-   vec3 normals[] = vec3[] (
+   vec3 avg_normals[] = vec3[] (
          textureOffset(low_normal_tex, in_uv, ivec2(0, 0)).xyz,
          textureOffset(low_normal_tex, in_uv, ivec2(0, 1)).xyz,
          textureOffset(low_normal_tex, in_uv, ivec2(1, 1)).xyz,
@@ -86,7 +86,7 @@ float calc_ambient_occlusion(in sampler2D ssao_tex,
 
    for(int i = 0; i < 4; i++) {
       weight = similarity(depths[i] * cf16f_scale, depth, 0.003f);
-      ndotn = dot(eye_normal, normals[i]);
+      ndotn = dot(eye_normal, avg_normals[i]);
 
       min_iter.r = min(samples[i].r, min_iter.r);
       min_iter.g = min(samples[i].g, min_iter.g);
@@ -109,42 +109,38 @@ float calc_ambient_occlusion(in sampler2D ssao_tex,
 
 float select_ambient_occlusion(in sampler2D ssao_tex,
                                in sampler2D depth_tex,
-                               in sampler2D low_depth_tex,
+                               in sampler2D low_normal_depth_tex,
                                in sampler2D eye_normal_tex,
-                               in sampler2D low_normal_tex,
+                               in sampler2D low_avg_normal_tex,
                                in vec2 in_uv,
                                out vec4 color)
 {
    vec3 eye_normal = texture(eye_normal_tex, in_uv).xyz;
-   vec3 normals[] = vec3[] (
-         textureOffset(low_normal_tex, in_uv, ivec2(0, 0)).xyz,
-         textureOffset(low_normal_tex, in_uv, ivec2(0, 1)).xyz,
-         textureOffset(low_normal_tex, in_uv, ivec2(1, 1)).xyz,
-         textureOffset(low_normal_tex, in_uv, ivec2(1, 0)).xyz);
-/*
-   float d0 = dot(eye_normal, normals[0]);
-   float d1 = dot(eye_normal, normals[1]);
-   float d2 = dot(eye_normal, normals[2]);
-   float d3 = dot(eye_normal, normals[3]);
 
-   float min_dot = min(min(d0, d1), min(d2, d3));
-*/
-   //float d0 = dot(normals[0], normals[0]);
+   /* the normal that corresponds to the depth sample */
+   vec3 normals[] = vec3[] (
+         textureOffset(low_normal_depth_tex, in_uv, ivec2(0, 0)).xyz,
+         textureOffset(low_normal_depth_tex, in_uv, ivec2(0, 1)).xyz,
+         textureOffset(low_normal_depth_tex, in_uv, ivec2(1, 1)).xyz,
+         textureOffset(low_normal_depth_tex, in_uv, ivec2(1, 0)).xyz);
+
    float d1 = dot(normals[0], normals[1]);
    float d2 = dot(normals[0], normals[2]);
    float d3 = dot(normals[0], normals[3]);
 
    float min_dot = min(d1, min(d2, d3));
-   float bd_ao = nearest_depth_occlusion(ssao_tex, depth_tex, low_depth_tex, in_uv);
+
+   float bd_ao = nearest_depth_occlusion(ssao_tex, depth_tex, low_normal_depth_tex, in_uv);
    float wa_ao = calc_ambient_occlusion(ssao_tex,
                                         depth_tex,
-                                        low_depth_tex,
+                                        low_normal_depth_tex,
                                         eye_normal_tex,
-                                        low_normal_tex,
+                                        low_avg_normal_tex,
                                         in_uv,
                                         color);
 
-   return mix(bd_ao, wa_ao, step(1.0, min_dot));
+   float selection = step(0.99, min_dot);
+   return mix(bd_ao, wa_ao, selection);
 }
 
 layout(push_constant) uniform pcb {
@@ -190,8 +186,8 @@ layout(set = 3, binding = 1) uniform sampler2D tex_eye_normal;
 layout(set = 3, binding = 2) uniform sampler2D tex_diffuse;
 layout(set = 3, binding = 3) uniform sampler2D tex_specular;
 layout(set = 3, binding = 4) uniform sampler2D tex_ssao;
-layout(set = 4, binding = 0) uniform sampler2D tex_depth_lowres;
-layout(set = 4, binding = 1) uniform sampler2D tex_normal_lowres;
+layout(set = 4, binding = 0) uniform sampler2D tex_normal_depth_lowres;
+layout(set = 4, binding = 1) uniform sampler2D tex_avg_normal_lowres;
 
 layout(location = 0) out vec4 out_color;
 
@@ -201,9 +197,9 @@ void main()
    vec4 color;
    float ambient_occlusion = select_ambient_occlusion(tex_ssao,
                                                       tex_depth,
-                                                      tex_depth_lowres,
+                                                      tex_normal_depth_lowres,
                                                       tex_eye_normal,
-                                                      tex_normal_lowres,
+                                                      tex_avg_normal_lowres,
                                                       in_uv,
                                                       color);
 
@@ -214,5 +210,5 @@ void main()
    //n0 = texture(tex_eye_normal, in_uv).xyz;
    //out_color = vec4(n0 * 0.5 + 0.5, 1.0);
    //out_color = vec4(color, 1.0);
-   out_color = vec4(ambient_occlusion, ambient_occlusion, ambient_occlusion, 1.0);
+   //out_color = vec4(ambient_occlusion, ambient_occlusion, ambient_occlusion, 1.0);
 }
