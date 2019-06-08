@@ -25,7 +25,7 @@ void downsample(in sampler2D tex_depth, in sampler2D tex_normal,
                min(min(d1, d2), min(d3, d4)),
                checkerboard(in_uv));
 
-   //depth = max(max(d1, d2), max(d3, d4));
+   depth = max(max(d1, d2), max(d3, d4));
 
    /* then we select the normal of the sample with the selected depth */
    if (depth == d1)
