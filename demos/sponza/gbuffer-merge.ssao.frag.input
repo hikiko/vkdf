@@ -191,5 +191,5 @@ void main()
    //n0 = texture(tex_eye_normal, in_uv).xyz;
    //out_color = vec4(n0 * 0.5 + 0.5, 1.0);
    //out_color = vec4(color, 1.0);
-   out_color = vec4(ambient_occlusion, ambient_occlusion, ambient_occlusion, 1.0);
+   //out_color = vec4(ambient_occlusion, ambient_occlusion, ambient_occlusion, 1.0);
 }
