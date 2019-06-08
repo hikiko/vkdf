@@ -277,6 +277,7 @@ typedef struct {
    VkSampler ssao_sampler;
    VkSampler depth_low_sampler;
    VkSampler normal_low_sampler;
+   VkSampler ssao_nearest_sampler;
 
    VkdfLight *light;
    VkdfSceneShadowSpec shadow_spec;
@@ -1799,7 +1800,7 @@ init_pipeline_descriptors(SceneResources *res,
 
 	  if (res->scene->ssao.enabled) {
 		  res->pipelines.descr.resize_tex_layout =
-			  vkdf_create_sampler_descriptor_set_layout(res->ctx, 0, 2, VK_SHADER_STAGE_FRAGMENT_BIT);
+			  vkdf_create_sampler_descriptor_set_layout(res->ctx, 0, 3, VK_SHADER_STAGE_FRAGMENT_BIT);
 		  res->pipelines.descr.resize_tex_set =
 			  vkdf_descriptor_set_create(res->ctx, res->descriptor_pool.sampler_pool,
 					  					 res->pipelines.descr.resize_tex_layout);
@@ -1807,6 +1808,9 @@ init_pipeline_descriptors(SceneResources *res,
 			 vkdf_create_depth_sampler(res->ctx, VK_FILTER_NEAREST);
 
 		 res->normal_low_sampler =
+			 vkdf_create_depth_sampler(res->ctx, VK_FILTER_NEAREST);
+
+		 res->ssao_nearest_sampler =
 			 vkdf_create_depth_sampler(res->ctx, VK_FILTER_NEAREST);
 
          vkdf_descriptor_set_sampler_update(res->ctx,
@@ -1822,7 +1826,6 @@ init_pipeline_descriptors(SceneResources *res,
 											res->scene->ssao.depth_resize.color_image.view,
 											VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
 											1, 1);
-
 	  }
 
       /* Binding 0: depth buffer */
@@ -1857,6 +1860,15 @@ init_pipeline_descriptors(SceneResources *res,
                                             ssao_image->view,
                                             VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
                                             binding_idx++, 1);
+
+		 /* must have the same binding num with the above, we need 2 samplers for the ssao */
+		 vkdf_descriptor_set_sampler_update(res->ctx,
+										    res->pipelines.descr.resize_tex_set,
+											res->ssao_nearest_sampler,
+                                            ssao_image->view,
+											VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+											2, 1);
+
       }
 
       assert(num_bindings == binding_idx);
@@ -2803,6 +2815,7 @@ destroy_samplers(SceneResources *res)
    vkDestroySampler(res->ctx->device, res->ssao_sampler, NULL);
    vkDestroySampler(res->ctx->device, res->depth_low_sampler, NULL);
    vkDestroySampler(res->ctx->device, res->normal_low_sampler, NULL);
+   vkDestroySampler(res->ctx->device, res->ssao_nearest_sampler, NULL);
 }
 
 void
