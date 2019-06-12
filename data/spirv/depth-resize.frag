@@ -41,8 +41,10 @@ void downsample(in sampler2D tex_depth, in sampler2D tex_normal,
    avg_normal = vec3(0.0001f, 0.0001f, 0.0001f);
    for (int i = 0; i < 4; i++) {
       avg_normal += normals[i] * similarity(depths[i], max_depth, T);
-      if (max_depth == depths[i])
+      if (max_depth == depths[i]) {
          normal = normals[i];
+		 break;
+	  }
    }
 }
 
