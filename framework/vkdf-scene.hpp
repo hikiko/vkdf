@@ -367,6 +367,28 @@ struct _VkdfScene {
          VkSampler input_sampler;  // To sample input SSAO texture
       } blur;
 
+      struct {
+         struct {
+            VkPipeline pipeline;
+            VkPipelineLayout layout;
+            VkDescriptorSetLayout resize_tex_layout;
+            VkDescriptorSet resize_tex_set;
+            struct {
+               VkShaderModule vs;
+               VkShaderModule fs;
+            } shader;
+         } pipeline;
+
+         VkdfImage image;
+         struct {
+            VkRenderPass renderpass;
+            VkFramebuffer framebuffer;
+         } rp;
+
+         VkSampler depth_sampler;
+         VkSampler normal_sampler;
+      } resize;
+
       VkCommandBuffer cmd_buf;
    } ssao;
 

@@ -6,6 +6,94 @@ INCLUDE(../../data/glsl/lighting.glsl)
 
 INCLUDE(../../data/glsl/util.glsl)
 
+layout (constant_id = 1) const float SSAO_DOWNSAMPLING = 1.0;
+
+float nearest_depth_ao(in sampler2D tex_ssao_nearest,
+                       in sampler2D tex_ssao_dnbuf,
+                       in sampler2D tex_depth,
+                       in vec2 in_uv)
+{
+   float d[] = float [] (
+         textureOffset(tex_ssao_dnbuf, in_uv, ivec2(0, 0)).a,
+         textureOffset(tex_ssao_dnbuf, in_uv, ivec2(0, 1)).a,
+         textureOffset(tex_ssao_dnbuf, in_uv, ivec2(1, 0)).a,
+         textureOffset(tex_ssao_dnbuf, in_uv, ivec2(1, 1)).a);
+
+   float ao[] = float[] (
+         textureOffset(tex_ssao_nearest, in_uv, ivec2(0, 0)).r,
+         textureOffset(tex_ssao_nearest, in_uv, ivec2(0, 1)).r,
+         textureOffset(tex_ssao_nearest, in_uv, ivec2(1, 0)).r,
+         textureOffset(tex_ssao_nearest, in_uv, ivec2(1, 1)).r);
+
+   float d0 = texture(tex_depth, in_uv).r;
+   float min_dist = 1.0;
+
+   int best_depth_idx;
+   for (int i = 0; i < 4; i++) {
+      float dist = abs(d0 - d[i]);
+
+      if (min_dist > dist) {
+         min_dist = dist;
+         best_depth_idx = i;
+      }
+   }
+
+   return ao[best_depth_idx];
+}
+
+float lerp_ao(in sampler2D tex_ssao,
+              in vec2 in_uv)
+{
+   return texture(tex_ssao, in_uv).r;
+}
+
+float smooth_linear_ao(in sampler2D tex_ssao,
+                       in vec2 in_uv)
+{
+   float samples[] = float[] (
+         textureOffset(tex_ssao, in_uv, ivec2(0, 0)).r,
+         textureOffset(tex_ssao, in_uv, ivec2(0, 1)).r,
+         textureOffset(tex_ssao, in_uv, ivec2(1, 0)).r,
+         textureOffset(tex_ssao, in_uv, ivec2(1, 1)).r);
+
+   float min_ao = 1.0;
+   for (int i = 0; i < 4; i++) {
+      min_ao = min(samples[i], min_ao);
+   }
+
+   return mix(texture(tex_ssao, in_uv).r, min_ao, 1.0 - 1.0 / SSAO_DOWNSAMPLING);
+}
+
+float calc_ao(in sampler2D tex_ssao,
+              in sampler2D tex_ssao_nearest,
+              in sampler2D tex_ssao_dnbuf,
+              in sampler2D tex_depth,
+              in vec2 in_uv)
+{
+   vec3 n[] = vec3[] (
+         textureOffset(tex_ssao_dnbuf, in_uv, ivec2(0, 0)).rgb,
+         textureOffset(tex_ssao_dnbuf, in_uv, ivec2(0, 1)).rgb,
+         textureOffset(tex_ssao_dnbuf, in_uv, ivec2(1, 0)).rgb,
+         textureOffset(tex_ssao_dnbuf, in_uv, ivec2(1, 1)).rgb);
+
+   float dot01 = dot(n[0], n[1]);
+   float dot02 = dot(n[0], n[2]);
+   float dot03 = dot(n[0], n[3]);
+
+   float min_dot = min(dot01, min(dot02, dot03));
+   float s = step(0.992, min_dot);
+
+/*
+   return mix(nearest_depth_ao(tex_ssao_nearest, tex_ssao_dnbuf, tex_depth,
+                               in_uv),
+              lerp_ao(tex_ssao, in_uv), s);
+   */
+
+   return mix(nearest_depth_ao(tex_ssao_nearest, tex_ssao_dnbuf,
+                               tex_depth, in_uv),
+              smooth_linear_ao(tex_ssao, in_uv), s);
+}
+
 layout(push_constant) uniform pcb {
    mat4 Proj;
    float aspect_ratio;
@@ -50,10 +138,14 @@ layout(set = 3, binding = 2) uniform sampler2D tex_diffuse;
 layout(set = 3, binding = 3) uniform sampler2D tex_specular;
 layout(set = 3, binding = 4) uniform sampler2D tex_ssao;
 
+layout(set = 4, binding = 0) uniform sampler2D tex_ssao_nearest;
+layout(set = 4, binding = 1) uniform sampler2D tex_ssao_dnbuf;
+
 layout(location = 0) out vec4 out_color;
 
 void main()
 {
-   float ambient_occlusion = texture(tex_ssao, in_uv).r;
+   float ambient_occlusion = calc_ao(tex_ssao, tex_ssao_nearest,
+                                     tex_ssao_dnbuf, tex_depth, in_uv);
    INCLUDE(compute_deferred_lighting.glsl)
 }

@@ -3,11 +3,8 @@
 // ================================= CONFIG ===================================
 
 /* Window resolution */
-const float      WIN_WIDTH                 = 800.0f;
-const float      WIN_HEIGHT                = 600.0f;
-
-//const float      WIN_WIDTH                 = 1920.0f;
-//const float      WIN_HEIGHT                = 1080.0f;
+const float      WIN_WIDTH                 = 1920.0f;
+const float      WIN_HEIGHT                = 1080.0f;
 const bool       WIN_FULLSCREEN            = false;
 
 /* Framerate target */
@@ -213,6 +210,9 @@ typedef struct {
 
          VkDescriptorSetLayout gbuffer_tex_layout;
          VkDescriptorSet gbuffer_tex_set;
+
+         VkDescriptorSetLayout ssao_upscaling_tex_layout;
+         VkDescriptorSet ssao_upscaling_tex_set;
       } descr;
 
       struct {
@@ -274,6 +274,8 @@ typedef struct {
    VkSampler sponza_opacity_sampler;
    VkSampler gbuffer_sampler;
    VkSampler ssao_sampler;
+   VkSampler ssao_sampler_nearest;
+   VkSampler ssao_sampler_dnbuf;
 
    VkdfLight *light;
    VkdfSceneShadowSpec shadow_spec;
@@ -787,14 +789,15 @@ record_gbuffer_merge_commands(VkdfContext *ctx,
       res->pipelines.descr.camera_view_set,
       res->pipelines.descr.light_set,
       res->pipelines.descr.shadow_map_sampler_set,
-      res->pipelines.descr.gbuffer_tex_set
+      res->pipelines.descr.gbuffer_tex_set,
+      res->pipelines.descr.ssao_upscaling_tex_set
    };
 
    vkCmdBindDescriptorSets(cmd_buf,
                            VK_PIPELINE_BIND_POINT_GRAPHICS,
                            res->pipelines.layout.gbuffer_merge,
                            0,                        // First decriptor set
-                           4,                        // Descriptor set count
+                           5,                        // Descriptor set count
                            descriptor_sets,          // Descriptor sets
                            0,                        // Dynamic offset count
                            NULL);                    // Dynamic offsets
@@ -1783,7 +1786,6 @@ init_pipeline_descriptors(SceneResources *res,
          vkdf_descriptor_set_create(res->ctx,
                                     res->descriptor_pool.sampler_pool,
                                     res->pipelines.descr.gbuffer_tex_layout);
-
       res->gbuffer_sampler =
          vkdf_create_sampler(res->ctx,
                              VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
@@ -1822,6 +1824,41 @@ init_pipeline_descriptors(SceneResources *res,
                                             ssao_image->view,
                                             VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
                                             binding_idx++, 1);
+
+         /* downsampled normal/depth sampler and nearest ssao sampler and set */
+         res->pipelines.descr.ssao_upscaling_tex_layout =
+            vkdf_create_sampler_descriptor_set_layout(res->ctx, 0, 2, VK_SHADER_STAGE_FRAGMENT_BIT);
+
+         res->pipelines.descr.ssao_upscaling_tex_set =
+            vkdf_descriptor_set_create(res->ctx,
+                                       res->descriptor_pool.sampler_pool,
+                                       res->pipelines.descr.ssao_upscaling_tex_layout);
+
+         res->ssao_sampler_nearest = vkdf_create_sampler(res->ctx,
+                                                         VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
+                                                         VK_FILTER_NEAREST,
+                                                         VK_SAMPLER_MIPMAP_MODE_NEAREST,
+                                                         0.0f);
+         vkdf_descriptor_set_sampler_update(res->ctx,
+                                            res->pipelines.descr.ssao_upscaling_tex_set,
+                                            res->ssao_sampler_nearest,
+                                            ssao_image->view,
+                                            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                                            0, 1);
+
+         res->ssao_sampler_dnbuf = vkdf_create_sampler(res->ctx,
+                                                       VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
+                                                       VK_FILTER_NEAREST,
+                                                       VK_SAMPLER_MIPMAP_MODE_NEAREST,
+                                                       0.0f);
+
+
+         vkdf_descriptor_set_sampler_update(res->ctx,
+                                            res->pipelines.descr.ssao_upscaling_tex_set,
+                                            res->ssao_sampler_dnbuf,
+                                            res->scene->ssao.resize.image.view,
+                                            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                                            1, 1);
       }
 
       assert(num_bindings == binding_idx);
@@ -1831,7 +1868,8 @@ init_pipeline_descriptors(SceneResources *res,
          res->pipelines.descr.camera_view_layout,
          res->pipelines.descr.light_layout,
          res->pipelines.descr.shadow_map_sampler_layout,
-         res->pipelines.descr.gbuffer_tex_layout
+         res->pipelines.descr.gbuffer_tex_layout,
+         res->pipelines.descr.ssao_upscaling_tex_layout
       };
 
       VkPipelineLayoutCreateInfo pipeline_layout_info;
@@ -1839,7 +1877,7 @@ init_pipeline_descriptors(SceneResources *res,
       pipeline_layout_info.pNext = NULL;
       pipeline_layout_info.pushConstantRangeCount = 1;
       pipeline_layout_info.pPushConstantRanges = &pcb_recons_range;
-      pipeline_layout_info.setLayoutCount = 4;
+      pipeline_layout_info.setLayoutCount = 5;
       pipeline_layout_info.pSetLayouts = gbuffer_merge_layouts;
       pipeline_layout_info.flags = 0;
 
@@ -1970,6 +2008,11 @@ create_gbuffer_pipeline(VkdfContext *ctx,
    return pipeline;
 }
 
+struct SpecializationData  {
+   uint32_t shadow_map_pcf_size;
+   float downsampling;
+};
+
 static inline VkPipeline
 create_gbuffer_merge_pipeline(SceneResources *res, bool use_ssao)
 {
@@ -1984,14 +2027,24 @@ create_gbuffer_merge_pipeline(SceneResources *res, bool use_ssao)
    VkShaderModule fs = use_ssao ? res->shaders.gbuffer_merge.fs_ssao :
                                   res->shaders.gbuffer_merge.fs;
 
-   VkPipelineShaderStageCreateInfo fs_info;
-   VkSpecializationMapEntry entry = { 0, 0, sizeof(uint32_t) };
-   VkSpecializationInfo fs_spec_info = {
-      1,
-      &entry,
-      sizeof(uint32_t),
-      &SHADOW_MAP_PCF_SIZE
+   SpecializationData data = {
+      SHADOW_MAP_PCF_SIZE,
+      SSAO_DOWNSAMPLING
    };
+
+   VkSpecializationMapEntry entries[] = {
+      {0, 0, sizeof data.shadow_map_pcf_size},
+      {1, offsetof(SpecializationData, downsampling), sizeof data.downsampling}
+   };
+
+   VkSpecializationInfo fs_spec_info = {
+      2,
+      entries,
+      sizeof data,
+      &data
+   };
+
+   VkPipelineShaderStageCreateInfo fs_info;
    vkdf_pipeline_fill_shader_stage_info(&fs_info,
                                         VK_SHADER_STAGE_FRAGMENT_BIT,
                                         fs, &fs_spec_info);
@@ -2528,7 +2581,8 @@ create_debug_tile_renderpass(SceneResources *res, VkFormat format)
 static void
 init_debug_tile_resources(SceneResources *res)
 {
-   res->debug.image = res->scene->rt.gbuffer[0];
+   //res->debug.image = res->scene->rt.gbuffer[0];
+   res->debug.image = res->scene->ssao.resize.image;
 
    VkdfImage *color_image = vkdf_scene_get_color_render_target(res->scene);
 
@@ -2691,10 +2745,15 @@ destroy_pipelines(SceneResources *res)
       vkFreeDescriptorSets(res->ctx->device,
                            res->descriptor_pool.sampler_pool,
                            1, &res->pipelines.descr.gbuffer_tex_set);
+      vkFreeDescriptorSets(res->ctx->device,
+                           res->descriptor_pool.sampler_pool,
+                           1, &res->pipelines.descr.ssao_upscaling_tex_set);
    }
 
    vkDestroyDescriptorSetLayout(res->ctx->device,
                                 res->pipelines.descr.gbuffer_tex_layout, NULL);
+   vkDestroyDescriptorSetLayout(res->ctx->device,
+                                res->pipelines.descr.ssao_upscaling_tex_layout, NULL);
 
    /* Descriptor pools */
    vkDestroyDescriptorPool(res->ctx->device,
@@ -2759,6 +2818,8 @@ destroy_samplers(SceneResources *res)
    vkDestroySampler(res->ctx->device, res->sponza_opacity_sampler, NULL);
    vkDestroySampler(res->ctx->device, res->gbuffer_sampler, NULL);
    vkDestroySampler(res->ctx->device, res->ssao_sampler, NULL);
+   vkDestroySampler(res->ctx->device, res->ssao_sampler_nearest, NULL);
+   vkDestroySampler(res->ctx->device, res->ssao_sampler_dnbuf, NULL);
 }
 
 void
@@ -2783,7 +2844,7 @@ main()
    VkdfContext ctx;
    SceneResources resources;
 
-   vkdf_init(&ctx, WIN_WIDTH, WIN_HEIGHT, WIN_FULLSCREEN, false, false);
+   vkdf_init(&ctx, WIN_WIDTH, WIN_HEIGHT, WIN_FULLSCREEN, false, true);
    vkdf_platform_mouse_enable_relative_mode(&ctx.platform);
    vkdf_set_framerate_target(&ctx, FRAMERATE_TARGET);
 
