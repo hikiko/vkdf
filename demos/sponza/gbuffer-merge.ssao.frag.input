@@ -83,15 +83,16 @@ float calc_ao(in sampler2D tex_ssao,
    float min_dot = min(dot01, min(dot02, dot03));
    float s = step(0.992, min_dot);
 
-/*
    return mix(nearest_depth_ao(tex_ssao_nearest, tex_ssao_dnbuf, tex_depth,
                                in_uv),
               lerp_ao(tex_ssao, in_uv), s);
-   */
 
+/*
    return mix(nearest_depth_ao(tex_ssao_nearest, tex_ssao_dnbuf,
                                tex_depth, in_uv),
               smooth_linear_ao(tex_ssao, in_uv), s);
+   return nearest_depth_ao(tex_ssao_nearest, tex_ssao_dnbuf, tex_depth, in_uv);
+*/
 }
 
 layout(push_constant) uniform pcb {

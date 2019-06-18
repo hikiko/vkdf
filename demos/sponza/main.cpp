@@ -50,7 +50,7 @@ const float      SSAO_INTENSITY            = 3.0f;
 const uint32_t   SSAO_BLUR_SIZE            = 2;     // Min=0 (no blur)
 const float      SSAO_BLUR_THRESHOLD       = 0.05f; // Min > 0.0
 const float      SSAO_DOWNSAMPLING         = 2.0f;  // Min=1.0 (no downsampling)
-const VkFilter   SSAO_FILTER               = VK_FILTER_NEAREST;
+const VkFilter   SSAO_FILTER               = VK_FILTER_LINEAR;
 
 /* High Dynamic Range (HDR) and Tone Mapping */
 const bool       ENABLE_HDR                = true;
