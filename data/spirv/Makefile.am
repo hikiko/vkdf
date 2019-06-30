@@ -18,8 +18,8 @@ BUILT_SOURCES = \
     brightness.frag.spv \
     fxaa.vert.spv \
     fxaa.frag.spv \
-    depth-resize.vert.spv \
-    depth-resize.frag.spv
+    ssao-resize.vert.spv \
+    ssao-resize.frag.spv
 
 
 CLEANFILES = \
@@ -95,11 +95,11 @@ fxaa.frag.spv: fxaa.frag
 
 
 # depth resize
-depth-resize.vert.spv: depth-resize.vert
-   $(top_srcdir)/$(GLSLANG) -V depth-resize.vert -o depth-resize.vert.spv
+ssao-resize.vert.spv: ssao-resize.vert
+	$(top_srcdir)/$(GLSLANG) -V ssao-resize.vert -o ssao-resize.vert.spv
 
-depth-resize.frag.spv: depth-resize.frag
-   $(top_srcdir)/$(GLSLANG) -V depth-resize.frag -o depth-resize.frag.spv
+ssao-resize.frag.spv: ssao-resize.frag
+	$(top_srcdir)/$(GLSLANG) -V ssao-resize.frag -o ssao-resize.frag.spv
 
 MAINTAINERCLEANFILES = \
 	*.in \
