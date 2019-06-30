@@ -47,23 +47,6 @@ float lerp_ao(in sampler2D tex_ssao,
    return texture(tex_ssao, in_uv).r;
 }
 
-float smooth_linear_ao(in sampler2D tex_ssao,
-                       in vec2 in_uv)
-{
-   float samples[] = float[] (
-         textureOffset(tex_ssao, in_uv, ivec2(0, 0)).r,
-         textureOffset(tex_ssao, in_uv, ivec2(0, 1)).r,
-         textureOffset(tex_ssao, in_uv, ivec2(1, 0)).r,
-         textureOffset(tex_ssao, in_uv, ivec2(1, 1)).r);
-
-   float min_ao = 1.0;
-   for (int i = 0; i < 4; i++) {
-      min_ao = min(samples[i], min_ao);
-   }
-
-   return mix(texture(tex_ssao, in_uv).r, min_ao, 1.0 - 1.0 / SSAO_DOWNSAMPLING);
-}
-
 float calc_ao(in sampler2D tex_ssao,
               in sampler2D tex_ssao_nearest,
               in sampler2D tex_ssao_dnbuf,
@@ -81,16 +64,14 @@ float calc_ao(in sampler2D tex_ssao,
    float dot03 = dot(n[0], n[3]);
 
    float min_dot = min(dot01, min(dot02, dot03));
-   float s = step(0.992, min_dot);
+   float s = step(0.997, min_dot);
 
    return mix(nearest_depth_ao(tex_ssao_nearest, tex_ssao_dnbuf, tex_depth,
                                in_uv),
               lerp_ao(tex_ssao, in_uv), s);
 
 /*
-   return mix(nearest_depth_ao(tex_ssao_nearest, tex_ssao_dnbuf,
-                               tex_depth, in_uv),
-              smooth_linear_ao(tex_ssao, in_uv), s);
+   return s;
    return nearest_depth_ao(tex_ssao_nearest, tex_ssao_dnbuf, tex_depth, in_uv);
 */
 }
