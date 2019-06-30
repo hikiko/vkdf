@@ -6,7 +6,7 @@ INCLUDE(../../data/glsl/lighting.glsl)
 
 INCLUDE(../../data/glsl/util.glsl)
 
-layout (constant_id = 1) const float SSAO_DOWNSAMPLING = 1.0;
+//layout (constant_id = 1) const float SSAO_DOWNSAMPLING = 1.0;
 
 float nearest_depth_ao(in sampler2D tex_ssao_nearest,
                        in sampler2D tex_ssao_dnbuf,

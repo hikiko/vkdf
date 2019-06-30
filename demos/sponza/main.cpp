@@ -2010,7 +2010,7 @@ create_gbuffer_pipeline(VkdfContext *ctx,
 
 struct SpecializationData  {
    uint32_t shadow_map_pcf_size;
-   float downsampling;
+// float downsampling;
 };
 
 static inline VkPipeline
@@ -2029,16 +2029,16 @@ create_gbuffer_merge_pipeline(SceneResources *res, bool use_ssao)
 
    SpecializationData data = {
       SHADOW_MAP_PCF_SIZE,
-      SSAO_DOWNSAMPLING
+//    SSAO_DOWNSAMPLING
    };
 
    VkSpecializationMapEntry entries[] = {
-      {0, 0, sizeof data.shadow_map_pcf_size},
-      {1, offsetof(SpecializationData, downsampling), sizeof data.downsampling}
+      {0, 0, sizeof data.shadow_map_pcf_size}//,
+//    {1, offsetof(SpecializationData, downsampling), sizeof data.downsampling}
    };
 
    VkSpecializationInfo fs_spec_info = {
-      2,
+      1, //2,
       entries,
       sizeof data,
       &data
