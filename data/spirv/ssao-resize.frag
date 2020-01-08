@@ -9,74 +9,59 @@ float checkerboard(in vec2 uv)
 
 float most_representative(sampler2D tex_depth, vec2 in_uv)
 {
-   float d[] = float[] (
+   float samples[] = float[] (
       textureOffset(tex_depth, in_uv, ivec2(0, 0)).x,
       textureOffset(tex_depth, in_uv, ivec2(0, 1)).x,
       textureOffset(tex_depth, in_uv, ivec2(1, 0)).x,
       textureOffset(tex_depth, in_uv, ivec2(1, 1)).x);
 
-   float centr = (d[0] + d[1] + d[2] + d[3]) / 4.0;
+   float centr = (samples[0] + samples[1] + samples[2] + samples[3]) / 4.0;
    float dist[] = float[] (
-         abs(centr - d[0]),
-         abs(centr - d[1]),
-         abs(centr - d[2]),
-         abs(centr - d[3]));
+         abs(centr - samples[0]),
+         abs(centr - samples[1]),
+         abs(centr - samples[2]),
+         abs(centr - samples[3]));
    
    float max_dist = max(max(dist[0], dist[1]), max(dist[2], dist[3]));
-   float d3[3];
+   float rem_samples[3];
+   int rejected_idx[3];
 
-   int j = 0;
-   for (int i = 0; i < 4; i++) {
-      if (dist[i] <= max_dist && j < 3) {
-         d3[j] = d[i];
+   int j = 0; int i; int k = 0;
+   for (i = 0; i < 4; i++) {
+      if (dist[i] < max_dist) {
+         rem_samples[j] = samples[i];
          j++;
+      } else {
+         /* for the extreme case where 2 or more samples
+            have max_dist distance from the centroid */
+         rejected_idx[k] = i;
+         k++;
       }
    }
 
-   centr = (d3[0] + d3[1] + d3[2]) / 3.0;
-   dist[0] = abs(d3[0] - centr);
-   dist[1] = abs(d3[1] - centr);
-   dist[2] = abs(d3[2] - centr);
+   /* also for the extreme case where 2 or more samples
+      have max_dist distance from the centroid */
+   if (j < 2) {
+      for (i = 3; i > j; i--) {
+         rem_samples[i] = samples[rejected_idx[k]];
+         k--;
+      }
+   }
 
-   float d2[2]; j = 0;
-   max_dist = max(max(dist[0], dist[1]), dist[2]);
+   centr = (rem_samples[0] + rem_samples[1] + rem_samples[2]) / 3.0;
+
+   dist[0] = abs(rem_samples[0] - centr);
+   dist[1] = abs(rem_samples[1] - centr);
+   dist[2] = abs(rem_samples[2] - centr);
+
+   float min_dist = min(dist[0], min(dist[1], dist[2]));
    for (int i = 0; i < 3; i++) {
-      if (dist[i] <= max_dist && j < 2) {
-         d2[j] = d3[i];
-         j++;
-      }
+      if (dist[i] == min_dist)
+         return rem_samples[i];
    }
 
-   centr = (d2[0] + d2[1]) / 2.0;
-   dist[0] = abs(d2[0] - centr);
-   dist[1] = abs(d2[1] - centr);
-   if (dist[0] < dist[1])
-      return d2[0];
-
-   return d2[1];
-}
-
-float least_representative(sampler2D tex_depth,
-                           vec2 in_uv)
-{
-   float d[] = float[] (
-      textureOffset(tex_depth, in_uv, ivec2(0, 0)).x,
-      textureOffset(tex_depth, in_uv, ivec2(0, 1)).x,
-      textureOffset(tex_depth, in_uv, ivec2(1, 0)).x,
-      textureOffset(tex_depth, in_uv, ivec2(1, 1)).x);
-
-   float max_dist = 0.0;
-   float depth_centroid = (d[0] + d[1] + d[2] + d[3]) / 4.0;
-   float least_rep;
-
-   for (int i = 0; i < 4; i++) {
-      float dist = abs(d[i] - depth_centroid);
-      if (dist > max_dist) {
-         max_dist = dist;
-         least_rep = d[i];
-      }
-   }
-   return least_rep;
+   /* should never reach */
+   return samples[0];
 }
 
 layout(set = 0, binding = 0) uniform sampler2D tex_depth;
